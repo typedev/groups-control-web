@@ -7,6 +7,7 @@ import { forgetSession, loadSession, rememberFiles, rememberState, type StoredSe
 import { WorkerError } from './worker/client'
 import type { FontSummary, OpResult } from './worker/protocol'
 import { useDialogs } from './ui/Dialog'
+import { AppearanceMenu, Button } from './ui/controls'
 import { GroupsControl } from './ui/GroupsControl'
 import { StartScreen } from './ui/StartScreen'
 
@@ -18,9 +19,6 @@ export type OpenFont = {
   model: FontModel
   dirty: boolean
 }
-
-const headerButton =
-  'rounded-md border border-zinc-300 px-2 py-0.5 text-xs hover:bg-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent dark:border-zinc-700 dark:hover:bg-zinc-800'
 
 export function App() {
   const runtime = useRuntime()
@@ -199,47 +197,58 @@ export function App() {
 
   return (
     <div className="flex h-screen flex-col">
-      <header className="flex shrink-0 items-center gap-3 border-b border-zinc-200 px-4 py-2 dark:border-zinc-800">
-        <h1 className="text-sm font-semibold tracking-tight">Groups Control</h1>
+      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
+        <h1 className="text-[15px] font-semibold tracking-tight">Groups Control</h1>
         {font ? (
           <>
-            <span className="truncate text-xs text-zinc-600 dark:text-zinc-400" title={font.name}>
-              {font.dirty && <span className="mr-1 text-blue-500" title="Unsaved changes">●</span>}
-              {title} <span className="text-zinc-400">· {font.name}</span>
+            <span className="min-w-0 truncate text-[13px] text-muted" title={font.name}>
+              {font.dirty && (
+                <span className="mr-1.5 inline-block size-2 rounded-full bg-accent align-middle" title="Unsaved changes" />
+              )}
+              <span className="text-ink">{title}</span>
+              <span className="ml-1.5">{font.name}</span>
             </span>
             {readOnly && (
-              <span className="rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-900 dark:bg-amber-900/50 dark:text-amber-200" title={font.summary.readOnlyReason ?? ''}>
-                read-only
+              <span
+                className="rounded-md bg-careful-soft px-2 py-0.5 text-xs font-medium text-careful"
+                title={font.summary.readOnlyReason ?? ''}
+              >
+                Read-only
               </span>
             )}
             {font.summary.hasMetricsRules && (
               <span
-                className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                className="rounded-md bg-raised px-2 py-0.5 text-xs text-muted"
                 title="This font has linked-sidebearing rules (com.typedev.spacing.metricsRules). They are not applied here: margin edits do not update the glyphs that depend on them."
               >
-                metrics rules ignored
+                Metrics rules ignored
               </span>
             )}
-            {status && <span className="text-xs text-zinc-500">{status}</span>}
-            <span className="ml-auto text-xs text-zinc-500 tabular-nums">{stats}</span>
-            <button type="button" className={headerButton} disabled={readOnly || !font.dirty} onClick={revert}>
+            {status && <span className="truncate text-xs text-muted">{status}</span>}
+            <span className="ml-auto whitespace-nowrap text-xs text-muted">{stats}</span>
+            <Button disabled={readOnly || !font.dirty} onClick={revert}>
               Revert
-            </button>
-            <button
-              type="button"
-              className={headerButton}
+            </Button>
+            <Button
+              variant="primary"
               disabled={readOnly || (!font.dirty && !!font.handle)}
               onClick={save}
-              title={font.handle ? 'Write groups.plist / kerning.plist back into the folder (Ctrl+S)' : 'Download the font as .ufoz (Ctrl+S)'}
+              title={font.handle ? 'Write the changed files back into the folder (Ctrl+S)' : 'Download the font as .ufoz (Ctrl+S)'}
             >
               {font.handle ? 'Save' : 'Download .ufoz'}
-            </button>
-            <button type="button" className={headerButton} onClick={close}>
+            </Button>
+            <Button variant="ghost" onClick={close}>
               Close
-            </button>
+            </Button>
+            <AppearanceMenu />
           </>
         ) : (
-          <span className="text-xs text-zinc-500">kerning groups &amp; kerning for UFO</span>
+          <>
+            <span className="text-[13px] text-muted">Kerning groups and kerning for UFO fonts</span>
+            <span className="ml-auto">
+              <AppearanceMenu />
+            </span>
+          </>
         )}
       </header>
       <main className="flex min-h-0 flex-1 flex-col">

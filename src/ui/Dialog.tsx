@@ -18,8 +18,8 @@ export type DialogSpec = {
 }
 
 const BUTTON = {
-  default: 'border border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800',
-  suggested: 'bg-blue-600 text-white hover:bg-blue-500',
+  default: 'border border-line bg-surface hover:bg-raised',
+  suggested: 'bg-accent text-accent-ink hover:brightness-110',
   destructive: 'bg-red-600 text-white hover:bg-red-500',
 }
 
@@ -46,14 +46,14 @@ export function Dialog({ spec }: { spec: DialogSpec }) {
         if (e.key === 'Escape') spec.onClose(null, text)
       }}
     >
-      <div role="dialog" aria-modal="true" aria-label={spec.title} className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl dark:bg-zinc-900">
+      <div role="dialog" aria-modal="true" aria-label={spec.title} className="w-full max-w-lg rounded-2xl border border-line bg-surface p-5 shadow-2xl">
         <h2 className="text-base font-semibold">{spec.title}</h2>
-        {spec.body && <div className="mt-2 max-h-[50vh] overflow-auto whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">{spec.body}</div>}
+        {spec.body && <div className="mt-2 max-h-[50vh] overflow-auto whitespace-pre-wrap text-sm text-ink/80">{spec.body}</div>}
         {spec.input && (
           <input
             ref={input}
             aria-label={spec.input.label}
-            className="mt-3 w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-950"
+            className="mt-3 w-full rounded-md border border-line bg-surface px-2.5 h-8 text-[13px]"
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => {
@@ -67,7 +67,7 @@ export function Dialog({ spec }: { spec: DialogSpec }) {
               key={b.value}
               ref={i === spec.buttons.length - 1 ? first : undefined}
               type="button"
-              className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm ${BUTTON[b.kind ?? 'default']}`}
+              className={`h-8 whitespace-nowrap rounded-lg px-3 text-[13px] font-medium ${BUTTON[b.kind ?? 'default']}`}
               onClick={() => spec.onClose(b.value, text)}
             >
               {b.label}

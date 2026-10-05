@@ -19,14 +19,14 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, State> {
     return (
       <div className="mx-auto mt-24 max-w-lg p-6 text-sm">
         <h1 className="text-base font-semibold">Something went wrong</h1>
-        <p className="mt-2 text-zinc-600 dark:text-zinc-400">
+        <p className="mt-2 text-muted">
           The page hit an error and stopped drawing. Your font file on disk is untouched; unsaved edits in this tab
           may be lost when you reload.
         </p>
-        <pre className="mt-3 overflow-auto rounded bg-zinc-100 p-2 text-xs dark:bg-zinc-900">{this.state.error.message}</pre>
+        <pre className="mt-3 overflow-auto rounded bg-raised p-2 text-xs">{this.state.error.message}</pre>
         <button
           type="button"
-          className="mt-4 rounded-md border border-zinc-300 px-3 py-1.5 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          className="mt-4 rounded-md border border-line px-3 py-1.5 hover:bg-raised"
           onClick={() => location.reload()}
         >
           Reload

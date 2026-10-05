@@ -15,12 +15,13 @@ import {
 } from '../model/font'
 import { freeName, nameProblem } from '../model/naming'
 import { buildPairRows } from '../model/pairs'
-import type { GroupScope, HistoryState, OpResult, Refused } from '../worker/protocol'
+import type { GroupScope, HistoryState, OpResult, Refused, ToolSpec } from '../worker/protocol'
+import { ToolDialog } from './ToolDialog'
+import { Button, Check, KeepKerningSwitch, Menu, MenuItem, MenuSeparator, Segmented, Select, TextInput } from './controls'
 import { download, sidecarName } from '../save'
 import { python } from '../runtime'
 import { CanvasGrid, type CellRect, type GridHandle } from './canvas/CanvasGrid'
 import {
-  DROP_GREEN,
   drawContentCell,
   drawFontCell,
   drawGroupCell,
@@ -36,6 +37,7 @@ import { PairsList } from './PairsList'
 import { Preview, type PreviewInput, type PreviewKeys } from './Preview'
 import { Splitter } from './Splitter'
 import { useDark } from './useDark'
+import { useAccentColor } from '../theme'
 
 type Source = 'font' | 'groups' | 'pairs'
 type Ask = (spec: Omit<DialogSpec, 'onClose'>) => Promise<{ value: string | null; input: string }>
@@ -50,11 +52,6 @@ type Props = {
   ask: Ask
   onStats: (text: string) => void
 }
-
-const control =
-  'rounded-md border border-zinc-300 bg-white px-1.5 py-0.5 text-xs dark:border-zinc-700 dark:bg-zinc-900'
-const toolButton =
-  'rounded-md border border-zinc-300 px-2 py-0.5 text-xs hover:bg-zinc-100 disabled:opacity-40 disabled:hover:bg-transparent dark:border-zinc-700 dark:hover:bg-zinc-800'
 
 /** Plain click selects one; Cmd/Ctrl toggles; Shift extends from the anchor. */
 function nextSelection(current: Set<string>, list: string[], index: number, anchor: number | null, e: MouseEvent): Set<string> {
@@ -75,8 +72,13 @@ function nextSelection(current: Set<string>, list: string[], index: number, anch
 function Column({ active, drop, children, className = '' }: { active: boolean; drop?: boolean; children: ReactNode; className?: string }) {
   return (
     <section
-      className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-lg border-2 ${className}`}
-      style={{ borderColor: drop ? DROP_GREEN : active ? '#3b82f6' : 'transparent' }}
+      className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-surface transition-[border-color,box-shadow] ${
+        drop
+          ? 'border-[#33bf59] shadow-[0_0_0_1px_#33bf59]'
+          : active
+            ? 'border-accent shadow-[0_0_0_1px_var(--c-accent)]'
+            : 'border-line'
+      } ${className}`}
     >
       {children}
     </section>
@@ -84,8 +86,14 @@ function Column({ active, drop, children, className = '' }: { active: boolean; d
 }
 
 function Toolbar({ children }: { children: ReactNode }) {
-  return <div className="flex h-9 shrink-0 items-center gap-1.5 px-1.5 text-xs">{children}</div>
+  return <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line px-2.5 py-2">{children}</div>
 }
+
+function Footer({ children }: { children: ReactNode }) {
+  return <div className="shrink-0 truncate border-t border-line px-3 py-1.5 text-xs text-muted">{children}</div>
+}
+
+const Divider = () => <span aria-hidden className="mx-1 h-5 w-px bg-line" />
 
 /** W:1031-1048 _report_grouped body. */
 function refusedText(refused: Refused, side: SideId): string {
@@ -107,7 +115,8 @@ type Drag = { source: DragSource; names: string[]; x0: number; y0: number; activ
 
 export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: Props) {
   const dark = useDark()
-  const theme = themeFor(dark)
+  const accentColor = useAccentColor()
+  const theme = useMemo(() => themeFor(dark, accentColor), [dark, accentColor])
   const [side, setSide] = useState<SideId>('kern1')
   const sideData = font.side(side)
   const prefix = prefixOf(side)
@@ -406,12 +415,15 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
 
   // -- import / export (Font-Rover import_export.py) -----------------------------------
 
-  const [ioOpen, setIoOpen] = useState(false)
+  const [tools, setTools] = useState<ToolSpec[]>([])
+  const [tool, setTool] = useState<ToolSpec | null>(null)
+  useEffect(() => {
+    void python.call('toolList', []).then(setTools)
+  }, [])
   const importInput = useRef<HTMLInputElement>(null)
   const historyInput = useRef<HTMLInputElement>(null)
 
   const exportGroups = async (scope: GroupScope) => {
-    setIoOpen(false)
     const { text } = await python.call('exportGroups', [scope])
     download(sidecarName(fontName, scope === 'kern' ? '_kern_groups.txt' : scope === 'other' ? '_other_groups.txt' : '_groups.txt'), text)
   }
@@ -546,9 +558,9 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
         selected: group === selectedGroup && source === 'groups',
         active: group === activeGroup,
         dropHover: i === groupHover,
-      })
+      }, theme.accent)
     },
-    [font, sideData, side, selectedGroup, activeGroup, source, groupHover],
+    [font, sideData, side, selectedGroup, activeGroup, source, groupHover, theme],
   )
 
   const drawContent = useCallback(
@@ -563,8 +575,8 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
         { selected: contentSelection.has(name), badge: badges[i], missing: !font.glyphSet.has(name) },
         theme,
       )
-      if (contentInsert === i) drawInsertBar(ctx, r, false)
-      else if (contentInsert === members.length && i === members.length - 1) drawInsertBar(ctx, r, true)
+      if (contentInsert === i) drawInsertBar(ctx, r, false, theme.accent)
+      else if (contentInsert === members.length && i === members.length - 1) drawInsertBar(ctx, r, true, theme.accent)
     },
     [font, members, side, contentSelection, badges, theme, contentInsert],
   )
@@ -622,20 +634,26 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-10 shrink-0 items-center gap-1.5 border-b border-zinc-200 px-3 text-xs dark:border-zinc-800">
-        <button type="button" className={toolButton} disabled={readOnly || !fontSelection.size} onClick={createGroup} title="Create group from selected glyphs">
-          + Add
-        </button>
-        <button type="button" className={toolButton} disabled={readOnly || !selectedGroup} onClick={deleteGroup} title="Delete selected group">
-          − Delete
-        </button>
-        <button type="button" className={toolButton} disabled={readOnly || !selectedGroup} onClick={renameGroup} title="Rename group">
-          ✎ Rename
-        </button>
+      <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 pb-1 pt-2.5">
+        <KeepKerningSwitch on={keepKerning} onChange={setKeepKerning} />
+        <Divider />
+        <Button disabled={readOnly || !fontSelection.size} onClick={createGroup} title="Create a group from the selected glyphs">
+          <span aria-hidden className="text-base leading-none">+</span> Add group
+        </Button>
+        <Button disabled={readOnly || !selectedGroup} onClick={renameGroup} title="Rename the selected group">
+          Rename
+        </Button>
+        <Button disabled={readOnly || !selectedGroup} onClick={deleteGroup} title="Delete the selected group">
+          Delete
+        </Button>
+        <Divider />
         <div className="relative">
-          <button type="button" className={toolButton} aria-expanded={historyOpen} onClick={() => setHistoryOpen((o) => !o)}>
-            History{history?.count ? ` (${history.count})` : ''}
-          </button>
+          <Button aria-expanded={historyOpen} onClick={() => setHistoryOpen((o) => !o)}>
+            History
+            {history?.count ? (
+              <span className="rounded-full bg-raised px-1.5 text-xs tabular-nums text-muted">{history.count}</span>
+            ) : null}
+          </Button>
           {historyOpen && history && (
             <HistoryPanel
               history={history}
@@ -659,71 +677,78 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
             }}
           />
         </div>
-        <div className="relative">
-          <button type="button" className={toolButton} aria-expanded={ioOpen} onClick={() => setIoOpen((o) => !o)}>
-            Groups ▾
-          </button>
-          {ioOpen && (
-            <div className="absolute left-0 top-full z-30 mt-1 flex w-56 flex-col rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
-              <button type="button" disabled={readOnly} className="px-3 py-1.5 text-left hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-zinc-800" onClick={() => { setIoOpen(false); importInput.current?.click() }}>
+        <Menu label="Groups">
+          {(close) => (
+            <>
+              <MenuItem disabled={readOnly} onClick={() => { close(); importInput.current?.click() }}>
                 Import groups…
-              </button>
-              <div className="my-1 border-t border-zinc-200 dark:border-zinc-700" />
+              </MenuItem>
+              <MenuSeparator />
               {(['all', 'kern', 'other'] as const).map((scope) => (
-                <button key={scope} type="button" className="px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800" onClick={() => void exportGroups(scope)}>
+                <MenuItem key={scope} onClick={() => { close(); void exportGroups(scope) }}>
                   Export {scope === 'all' ? 'all groups' : scope === 'kern' ? 'kerning groups' : 'other groups'}
-                </button>
+                </MenuItem>
               ))}
-            </div>
+            </>
           )}
-          <input
-            ref={importInput}
-            type="file"
-            accept=".txt,text/plain"
-            className="hidden"
-            aria-label="Import groups file"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              e.target.value = ''
-              if (file) void importGroups(file)
-            }}
-          />
-        </div>
-        <label className="ml-auto flex items-center gap-1" title="Preserve kerning as exception pairs when modifying groups">
-          <input type="checkbox" checked={keepKerning} onChange={(e) => setKeepKerning(e.target.checked)} />
-          Keep Kerning
-        </label>
+        </Menu>
+        <input
+          ref={importInput}
+          type="file"
+          accept=".txt,text/plain"
+          className="hidden"
+          aria-label="Import groups file"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            e.target.value = ''
+            if (file) void importGroups(file)
+          }}
+        />
+        <Menu label="Tools" width="w-72">
+          {(close) =>
+            [...tools].sort((a, b) => a.name.localeCompare(b.name)).map((t) => (
+              <MenuItem key={t.id} title={t.description} onClick={() => { close(); setTool(t) }}>
+                {t.name}…
+              </MenuItem>
+            ))
+          }
+        </Menu>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex min-h-0 p-1.5" style={{ flex: 1 - previewFraction }}>
+      <div className="flex min-h-0 px-3 py-1.5" style={{ flex: 1 - previewFraction }}>
         <div className="flex min-h-0 min-w-0 flex-col" style={{ width: `${widths[0] * 100}%` }}>
           <Column active={source === 'font'} drop={dropTarget?.kind === 'font'} className="flex-1">
             <Toolbar>
-              <select className={control} value={searchMode} onChange={(e) => setSearchMode(e.target.value as SearchMode)} aria-label="Search by">
-                <option value="name">Name</option>
-                <option value="unicode">Unicode</option>
-              </select>
-              <input
-                className={`${control} min-w-0 flex-1`}
-                placeholder={searchMode === 'name' ? 'A* , *.sc' : '0041, 04*'}
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-                aria-label="Search glyphs"
-              />
-              <select className={control} value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} aria-label="Sort">
+              <div className="flex min-w-0 flex-[1_1_100%] gap-2">
+                <Select value={searchMode} onChange={(e) => setSearchMode(e.target.value as SearchMode)} aria-label="Search by">
+                  <option value="name">Name</option>
+                  <option value="unicode">Unicode</option>
+                </Select>
+                <TextInput
+                  className="flex-1"
+                  type="search"
+                  placeholder={searchMode === 'name' ? 'Search: A*, *.sc' : 'Search: 0041, 04*'}
+                  value={searchText}
+                  onChange={(e) => setSearchText(e.target.value)}
+                  aria-label="Search glyphs"
+                />
+              </div>
+              <Select value={sortMode} onChange={(e) => setSortMode(e.target.value as SortMode)} aria-label="Sort">
                 <option value="order">Glyph order</option>
-                <option value="unicode">Unicode</option>
-              </select>
-              <label className={`flex items-center gap-1 whitespace-nowrap ${kernFilter !== 'all' ? 'opacity-40' : ''}`}>
-                <input type="checkbox" checked={hideGrouped} disabled={kernFilter !== 'all'} onChange={(e) => setHideGrouped(e.target.checked)} />
-                Hide grouped
-              </label>
-              <select className={control} value={kernFilter} onChange={(e) => setKernFilter(e.target.value as KernFilter)} aria-label="Kerning filter">
-                <option value="all">All</option>
+                <option value="unicode">Unicode order</option>
+              </Select>
+              <Select value={kernFilter} onChange={(e) => setKernFilter(e.target.value as KernFilter)} aria-label="Kerning filter">
+                <option value="all">All glyphs</option>
                 <option value="kerned">Kerned</option>
                 <option value="not_kerned">Not kerned</option>
-              </select>
+              </Select>
+              <Check
+                label="Hide grouped"
+                checked={hideGrouped}
+                disabled={kernFilter !== 'all'}
+                onChange={(e) => setHideGrouped(e.target.checked)}
+              />
             </Toolbar>
             <CanvasGrid
               label="Font glyphs"
@@ -736,32 +761,28 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
               onCellClick={onFontClick}
               onCellPointerDown={fontPointerDown}
             />
-            <div className="px-2 py-1 text-xs text-zinc-500">
+            <Footer>
               {fontNames.length} of {font.data.order.length} glyphs
-              {fontSelection.size ? ` | ${fontSelection.size} selected` : ''}
-            </div>
+              {fontSelection.size ? `, ${fontSelection.size} selected` : ''}
+            </Footer>
           </Column>
         </div>
         <Splitter direction="horizontal" onDrag={(d) => resize(0, d)} />
         <div className="flex min-h-0 min-w-0 flex-col" style={{ width: `${widths[1] * 100}%` }}>
           <Column active={source === 'groups'} className="min-h-0 flex-1">
             <Toolbar>
-              <div className="flex overflow-hidden rounded-md border border-zinc-300 dark:border-zinc-700" role="group" aria-label="Side">
-                {(['kern1', 'kern2'] as const).map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    aria-pressed={side === s}
-                    className={`px-2 py-0.5 ${side === s ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900' : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'}`}
-                    onClick={() => setSide(s)}
-                  >
-                    {s === 'kern1' ? 'Side 1' : 'Side 2'}
-                  </button>
-                ))}
-              </div>
-              <span className="ml-1 text-zinc-500">Group:</span>
-              <select
-                className={`${control} min-w-0 flex-1`}
+              <Segmented<SideId>
+                tone="accent"
+                label="Side"
+                value={side}
+                onChange={setSide}
+                options={[
+                  { value: 'kern1', label: 'Side 1', title: 'Left side of a pair (public.kern1)' },
+                  { value: 'kern2', label: 'Side 2', title: 'Right side of a pair (public.kern2)' },
+                ]}
+              />
+              <Select
+                className="min-w-24 flex-1"
                 value={selectedGroup ?? ''}
                 onChange={(e) => {
                   selectGroup(e.target.value || null)
@@ -775,7 +796,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
                     {displayGroupName(g, side)}
                   </option>
                 ))}
-              </select>
+              </Select>
             </Toolbar>
             <div className="flex min-h-0 flex-col" style={{ flex: groupsFraction }}>
               <CanvasGrid
@@ -792,14 +813,14 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
             </div>
             <Splitter direction="vertical" onDrag={(d) => setGroupsFraction((f) => Math.min(0.85, Math.max(0.15, f + d)))} />
             <div className="flex min-h-0 flex-col" style={{ flex: 1 - groupsFraction }}>
-              <div className="px-2 pb-1 text-xs text-zinc-500">
+              <div className="flex items-baseline gap-2 border-t border-line px-3 pb-1 pt-2 text-xs text-muted">
                 {activeGroup ? (
                   <>
-                    <span className="font-medium text-zinc-700 dark:text-zinc-300">{displayGroupName(activeGroup, side)}</span>
-                    {` · ${members.length} glyph${members.length === 1 ? '' : 's'}`}
+                    <span className="text-[13px] font-semibold text-ink">{displayGroupName(activeGroup, side)}</span>
+                    {`${members.length} glyph${members.length === 1 ? '' : 's'}, first is the key glyph`}
                   </>
                 ) : (
-                  'No group'
+                  'Select a group to see its glyphs'
                 )}
               </div>
               <CanvasGrid
@@ -820,22 +841,20 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
         <div className="flex min-h-0 min-w-0 flex-col" style={{ width: `${widths[2] * 100}%` }}>
           <Column active={source === 'pairs'} className="flex-1">
             <Toolbar>
-              <span className="font-medium">Pairs</span>
-              <span className="min-w-0 flex-1 truncate text-zinc-500">
+              <span className="text-[13px] font-semibold">Pairs</span>
+              <span className="min-w-0 flex-1 truncate text-xs text-muted">
                 {listSource === 'font' && fontSelection.size
                   ? [...fontSelection][0]
                   : selectedGroup
                     ? `@.${displayGroupName(selectedGroup, side)} and its members`
                     : ''}
               </span>
-              <button
-                type="button"
-                className={toolButton}
+              <Button
                 disabled={readOnly || !pairRows.some((r) => pairSelection.has(`${r.left}\u0000${r.right}`))}
                 onClick={deletePairs}
               >
-                Delete Pairs
-              </button>
+                Delete pairs
+              </Button>
             </Toolbar>
             <PairsList
               rows={pairRows}
@@ -849,14 +868,35 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
         </div>
       </div>
       <Splitter direction="vertical" onDrag={(d) => setPreviewFraction((f) => Math.min(0.75, Math.max(0.12, f - d)))} />
-      <div className="mx-1.5 mb-1.5 flex min-h-0 flex-col overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800" style={{ flex: previewFraction }}>
+      <div className="mx-3 mb-3 flex min-h-0 flex-col overflow-hidden rounded-xl border border-line bg-surface" style={{ flex: previewFraction }}>
         <Preview font={font} side={side} input={previewInput} run={run} readOnly={readOnly} keysRef={previewKeys} />
       </div>
       </div>
 
+      {tool && (
+        <ToolDialog
+          tool={tool}
+          readOnly={readOnly}
+          hasSelectedGroup={!!selectedGroup}
+          onPlan={(options) =>
+            python.call('toolPlan', [tool.id, { ...options, _selectedGroups: selectedGroup ? [selectedGroup] : [], _side: side }])
+          }
+          onApply={async () => {
+            const res = await run(() => python.call('toolApply', []))
+            if (res) {
+              setSelectedGroup(null)
+              setActiveGroup(null)
+              setContentSelection(new Set())
+            }
+            return !!res
+          }}
+          onClose={() => setTool(null)}
+        />
+      )}
+
       {drag?.active && (
         <div
-          className="pointer-events-none fixed z-40 rounded-md bg-zinc-900/90 px-2 py-1 text-xs text-white shadow"
+          className="pointer-events-none fixed z-40 rounded-lg bg-ink px-2.5 py-1 text-xs font-medium text-surface shadow-lg"
           style={{ left: drag.x + 12, top: drag.y + 12 }}
         >
           {drag.names.slice(0, 3).join(', ')}

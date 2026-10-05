@@ -4,7 +4,7 @@ import type { ExceptionType } from '../model/font'
 import { shortGroupName } from '../model/kerning'
 import { sortPairRows, type PairRow, type PairSort, type PairSortColumn } from '../model/pairs'
 
-const ROW = 24
+const ROW = 26
 
 const valueClass = (v: number) =>
   v < 0 ? 'text-red-600 dark:text-[#ff6b6b]' : v > 0 ? 'text-green-700 dark:text-[#69db7c]' : 'text-orange-600 dark:text-[#ffd43b]'
@@ -48,7 +48,7 @@ function SideName({ name, isGroup }: { name: string; isGroup: boolean }) {
   if (!isGroup) return <span className="pl-5">{name}</span>
   return (
     <span>
-      <span className="font-bold text-blue-600 dark:text-blue-400">@.</span>
+      <span className="font-bold text-accent">@.</span>
       {shortGroupName(name)}
     </span>
   )
@@ -114,13 +114,13 @@ export function PairsList({ rows, selected, onSelect, onFocus, onDelete, onEditK
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col text-xs">
-      <div className="flex border-b border-zinc-200 bg-zinc-50 font-medium dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="flex min-h-0 flex-1 flex-col text-[12.5px]">
+      <div className="flex border-b border-line bg-raised text-xs font-medium text-muted">
         {COLUMNS.map((c) => (
           <button
             key={c.id}
             type="button"
-            className={`${c.className} truncate px-2 py-1 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800 ${c.className.includes('text-right') ? 'text-right' : ''}`}
+            className={`${c.className} truncate px-2 py-1 text-left hover:bg-raised ${c.className.includes('text-right') ? 'text-right' : ''}`}
             onClick={() =>
               setSort((s) => ({ column: c.id, descending: s.column === c.id ? !s.descending : false }))
             }
@@ -158,8 +158,8 @@ export function PairsList({ rows, selected, onSelect, onFocus, onDelete, onEditK
             return (
               <div
                 key={rowKey(r)}
-                className={`absolute left-0 right-0 flex cursor-default items-center border-b border-zinc-100 dark:border-zinc-800/60 ${
-                  isSelected ? 'bg-blue-100 dark:bg-blue-900/50' : ''
+                className={`absolute left-0 right-0 flex cursor-default items-center border-b border-line/60 ${
+                  isSelected ? 'bg-accent-soft' : ''
                 }`}
                 style={{ top: index * ROW, height: ROW }}
                 onClick={(e) => click(index, e)}
@@ -185,7 +185,7 @@ export function PairsList({ rows, selected, onSelect, onFocus, onDelete, onEditK
           })}
         </div>
       </div>
-      <div className="border-t border-zinc-200 px-2 py-1 text-zinc-500 dark:border-zinc-800">
+      <div className="border-t border-line px-3 py-1.5 text-muted">
         {sorted.length} pairs | {selectedHere} selected
       </div>
     </div>

@@ -46,8 +46,8 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
         <div
           className={`rounded-xl border-2 border-dashed px-8 py-12 text-center transition-colors ${
             over
-              ? 'border-blue-500 bg-blue-50 dark:bg-blue-950/40'
-              : 'border-zinc-300 dark:border-zinc-700'
+              ? 'border-accent bg-accent-soft'
+              : 'border-line-strong'
           }`}
         >
           {opening ? (
@@ -62,7 +62,7 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
                 {canPickFolder && (
                   <button
                     type="button"
-                    className="rounded-md bg-zinc-900 px-3 py-1.5 text-sm text-white hover:bg-zinc-700 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-300"
+                    className="rounded-md bg-accent h-8 px-3 text-[13px] font-medium text-accent-ink hover:brightness-110"
                     onClick={() => onOpen(pickFolder())}
                   >
                     Open .ufo folder…
@@ -70,7 +70,7 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
                 )}
                 <button
                   type="button"
-                  className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                  className="rounded-md border border-line h-8 px-3 text-[13px] font-medium hover:bg-raised"
                   onClick={() => fileInput.current?.click()}
                 >
                   Open .ufoz…
@@ -92,15 +92,15 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
         </div>
 
         {stored && !opening && (
-          <div className="mt-4 flex items-center gap-3 rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm dark:border-blue-800 dark:bg-blue-950/40">
+          <div className="mt-4 flex items-center gap-3 rounded-md border border-accent/40 bg-accent-soft px-3 py-2 text-[13px]">
             <span className="min-w-0 flex-1">
               Unsaved edits to <span className="font-medium">{stored.name}</span>
               {stored.savedAt ? ` from ${new Date(stored.savedAt).toLocaleString()}` : ''}
             </span>
-            <button type="button" className="rounded-md bg-blue-600 px-2.5 py-1 text-white hover:bg-blue-500" onClick={onRestore}>
+            <button type="button" className="h-8 rounded-lg bg-accent px-3 font-medium text-accent-ink hover:brightness-110" onClick={onRestore}>
               Restore
             </button>
-            <button type="button" className="rounded-md px-2 py-1 hover:bg-blue-100 dark:hover:bg-blue-900/50" onClick={onDiscard}>
+            <button type="button" className="rounded-lg h-8 px-3 hover:bg-surface/60" onClick={onDiscard}>
               Discard
             </button>
           </div>
@@ -114,8 +114,8 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
 
         <RuntimeStatus runtime={runtime} />
 
-        <p className="mt-8 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
-          <span className="font-medium text-zinc-900 dark:text-zinc-100">Your fonts never leave this computer.</span>{' '}
+        <p className="mt-8 text-sm leading-relaxed text-muted">
+          <span className="font-medium text-ink">Your fonts never leave this computer.</span>{' '}
           Everything runs inside this browser tab: there is no server and nothing is uploaded, so it is safe
           for fonts under NDA. Saving writes back into the folder you opened (Chrome, Edge) or downloads a
           file.
@@ -135,20 +135,20 @@ function RuntimeStatus({ runtime }: { runtime: RuntimeState }) {
   }
   if (runtime.status === 'ready') {
     return (
-      <p className="mt-4 text-xs text-zinc-500" title={JSON.stringify(runtime.versions)}>
+      <p className="mt-4 text-xs text-muted" title={JSON.stringify(runtime.versions)}>
         Ready · Python {runtime.versions.python} · started in {(runtime.ms / 1000).toFixed(1)} s
       </p>
     )
   }
   return (
     <div className="mt-4" aria-live="polite">
-      <div className="flex justify-between text-xs text-zinc-500">
+      <div className="flex justify-between text-xs text-muted">
         <span>{STAGE_LABEL[runtime.stage]}</span>
         <span>first visit downloads ≈ 7 MB</span>
       </div>
-      <div className="mt-1 h-1 overflow-hidden rounded bg-zinc-200 dark:bg-zinc-800">
+      <div className="mt-1 h-1 overflow-hidden rounded bg-raised">
         <div
-          className="h-full bg-blue-500 transition-[width] duration-500"
+          className="h-full bg-accent transition-[width] duration-500"
           style={{ width: `${Math.max(5, runtime.fraction * 100)}%` }}
         />
       </div>

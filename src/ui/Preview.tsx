@@ -8,6 +8,8 @@ import { pyRound } from '../model/pyround'
 import { python } from '../runtime'
 import type { Run } from './GroupsControl'
 import { useDark } from './useDark'
+import { useAccentColor } from '../theme'
+import { Check, Segmented, TextInput } from './controls'
 
 export type PreviewInput =
   | { kind: 'line'; subject: Omit<PreviewSubject, 'mode'>; title: string }
@@ -33,12 +35,16 @@ const MARGIN_ROW = 26
 
 const COLORS = {
   light: { text: '#000000', bg: '#ffffff', mismatch: 'rgb(115,10,26)', mismatchLabel: 'rgb(230,38,38)', label: 'rgba(0,0,0,0.55)' },
-  dark: { text: '#ffffff', bg: 'rgb(38,38,38)', mismatch: 'rgb(199,46,51)', mismatchLabel: 'rgb(255,179,179)', label: 'rgba(255,255,255,0.55)' },
+  dark: { text: '#ffffff', bg: '#1b1d23', mismatch: 'rgb(199,46,51)', mismatchLabel: 'rgb(255,179,179)', label: 'rgba(255,255,255,0.55)' },
 }
 const NON_MEMBER = 'rgb(64,128,230)'
 const KERN_NEG = 'rgba(230,51,51,0.9)'
 const KERN_POS = 'rgba(51,179,51,0.9)'
-const SELECT = 'rgba(51,128,230,0.18)'
+/** The accent as a translucent fill for the selected pair / glyph. */
+const tint = (hex: string, alpha: number) => {
+  const n = parseInt(hex.slice(1), 16)
+  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${alpha})`
+}
 
 /** Bolt in a unit box, y down (glyph_line/kerning_markers.py). */
 function bolt(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
@@ -105,6 +111,7 @@ type Layout = {
 export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
   const dark = useDark()
   const colors = dark ? COLORS.dark : COLORS.light
+  const accentColor = useAccentColor()
   const [mode, setMode] = useState<ChainMode>('smart')
   const [expanded, setExpanded] = useState(false)
   const [perRow, setPerRow] = useState(8)
@@ -249,14 +256,14 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
         const i = selection[1]
         const x0 = xs[r][i]
         const x1 = xs[r][i + 1] + (font.glyph(row[i + 1].n)?.w ?? 0) * scale
-        ctx.fillStyle = SELECT
+        ctx.fillStyle = tint(accentColor, dark ? 0.2 : 0.13)
         ctx.fillRect(x0, top, x1 - x0, rowHeight - 4)
       }
 
       if (!pairsMode && glyphSel && glyphSel.row === r) {
         const g = font.glyph(row[glyphSel.index]?.n)
         if (g) {
-          ctx.fillStyle = SELECT
+          ctx.fillStyle = tint(accentColor, dark ? 0.2 : 0.13)
           ctx.fillRect(xs[r][glyphSel.index], top, g.w * scale, rowHeight - 4)
         }
       }
@@ -362,7 +369,7 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
         })
       }
     }
-  }, [view, layout, colors, font, pairsMode, selection, glyphSel, showMargins, showNames, side])
+  }, [view, layout, colors, font, pairsMode, selection, glyphSel, showMargins, showNames, side, dark, accentColor])
 
   useEffect(() => {
     const id = requestAnimationFrame(paint)
@@ -510,58 +517,59 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
     el.focus()
   }
 
-  const control = 'rounded-md border border-zinc-300 bg-white px-1.5 py-0.5 text-xs dark:border-zinc-700 dark:bg-zinc-900'
-
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex h-8 shrink-0 items-center gap-2 px-2 text-xs">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-line px-2.5 py-2">
+        <span className="text-[13px] font-semibold">Preview</span>
         {pairsMode ? (
           <>
-            <label className={`flex items-center gap-1 ${input.pairs.length === 1 ? '' : 'opacity-40'}`}>
-              <input type="checkbox" checked={expanded} disabled={input.pairs.length !== 1} onChange={(e) => setExpanded(e.target.checked)} />
-              Expand
-            </label>
-            <label className="flex items-center gap-1">
+            <Check
+              label="Expand"
+              title="All left glyphs × all right glyphs of one pair"
+              checked={expanded}
+              disabled={input.pairs.length !== 1}
+              onChange={(e) => setExpanded(e.target.checked)}
+            />
+            <label className="inline-flex items-center gap-1.5 text-[13px]">
               Pairs per line
-              <input
+              <TextInput
                 type="number"
                 min={1}
                 max={50}
-                className={`${control} w-14`}
+                className="w-16"
                 value={perRow}
                 onChange={(e) => setPerRow(Math.max(1, Math.min(50, Number(e.target.value) || 1)))}
               />
             </label>
           </>
         ) : (
-          <select className={control} value={mode} onChange={(e) => setMode(e.target.value as ChainMode)} aria-label="Chain">
-            <option value="members">Members</option>
-            <option value="all">All</option>
-            <option value="smart">Smart</option>
-          </select>
+          <Segmented<ChainMode>
+            label="Chain"
+            value={mode}
+            onChange={setMode}
+            options={[
+              { value: 'members', label: 'Members', title: 'Only the group members' },
+              { value: 'all', label: 'All', title: 'Members, their base glyphs and every composite' },
+              { value: 'smart', label: 'Smart', title: 'Composites that take their side from these glyphs' },
+            ]}
+          />
         )}
-        <label className="flex items-center gap-1">
+        <label className="inline-flex items-center gap-1.5 text-[13px]">
           Size
-          <input
+          <TextInput
             type="number"
             min={12}
             max={300}
             step={4}
-            className={`${control} w-16`}
+            className="w-16"
             value={sizePt}
             onChange={(e) => setSizePt(Math.max(12, Math.min(300, Number(e.target.value) || 40)))}
           />
         </label>
-        <label className="flex items-center gap-1">
-          <input type="checkbox" checked={showMargins} onChange={(e) => setShowMargins(e.target.checked)} />
-          Margins
-        </label>
-        <label className="flex items-center gap-1">
-          <input type="checkbox" checked={showNames} onChange={(e) => setShowNames(e.target.checked)} />
-          Names
-        </label>
-        <span className="min-w-0 flex-1 truncate text-right text-zinc-500" title={info}>
-          {hint ? <span className="text-amber-600 dark:text-amber-400">{hint}</span> : info}
+        <Check label="Margins" checked={showMargins} onChange={(e) => setShowMargins(e.target.checked)} />
+        <Check label="Names" checked={showNames} onChange={(e) => setShowNames(e.target.checked)} />
+        <span className="min-w-0 flex-1 truncate text-right text-xs text-muted" title={hint ?? info}>
+          {hint ? <span className="font-medium text-careful">{hint}</span> : info}
         </span>
       </div>
       <div className="relative min-h-0 flex-1">
@@ -570,7 +578,7 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
         ref={scroller}
         tabIndex={0}
         aria-label="Preview"
-        className="absolute inset-0 overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-500/50"
+        className="absolute inset-0 overflow-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/50"
         onScroll={(e) => {
           const el = e.currentTarget
           setView((v) => ({ ...v, left: el.scrollLeft, top: el.scrollTop }))

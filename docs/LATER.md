@@ -13,6 +13,10 @@ Suggested order: designspace first (reuses the UFO loader), then Glyphs.
 - Master switcher in the header.
 - Rename: "This UFO / All N UFOs".
 - History: Apply to Masters (replay), one undoable step per master.
+- Tools that need a second font (Phase 7 left them out): Diff Groups &
+  Kerning (`diff_kerning.py`; could also diff against the file on disk),
+  Copy Kerning of Glyphs (`copy_kerning.py`), Transfer Kerning by Script
+  (`transfer_kerning.py`), Interpolate Kerning (`interpolate_kerning.py`).
 - Tools that need it: Copy Groups (`groups_control/copy_groups.py`:
   `snapshot`, `process_font`, `FontProxy`, `describe_changes` — vendor, strip
   `ProcessPoolExecutor`), Interpolate Kerning.

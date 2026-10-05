@@ -29,6 +29,8 @@ type Props = {
   label?: string
   onCellPointerDown?: (index: number, e: PointerEvent) => void
   handle?: Ref<GridHandle>
+  /** Space between the cells and the panel edges, so selection outlines stay clear of the border. */
+  padding?: number
 }
 
 export function CanvasGrid({
@@ -45,16 +47,17 @@ export function CanvasGrid({
   label,
   onCellPointerDown,
   handle,
+  padding = 6,
 }: Props) {
   const scroller = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const [size, setSize] = useState({ w: 0, h: 0 })
   const frame = useRef(0)
 
-  const columns = Math.max(1, Math.floor((size.w + gap) / (cellWidth + gap)))
+  const columns = Math.max(1, Math.floor((size.w - 2 * padding + gap) / (cellWidth + gap)))
   const rows = Math.ceil(count / columns)
   const rowStep = cellHeight + gap
-  const totalHeight = Math.max(rows * rowStep - gap, 0)
+  const totalHeight = rows ? rows * rowStep - gap + 2 * padding : 0
 
   useLayoutEffect(() => {
     const el = scroller.current
@@ -81,14 +84,14 @@ export function CanvasGrid({
       ctx.fillStyle = background
       ctx.fillRect(0, 0, size.w, size.h)
     }
-    const top = el.scrollTop
+    const top = el.scrollTop - padding
     const first = Math.max(0, Math.floor(top / rowStep))
     const last = Math.min(rows - 1, Math.floor((top + size.h) / rowStep))
     for (let row = first; row <= last; row++) {
       for (let col = 0; col < columns; col++) {
         const index = row * columns + col
         if (index >= count) break
-        const rect = { x: col * (cellWidth + gap), y: row * rowStep - top, w: cellWidth, h: cellHeight }
+        const rect = { x: padding + col * (cellWidth + gap), y: row * rowStep - top, w: cellWidth, h: cellHeight }
         ctx.save()
         ctx.beginPath()
         ctx.rect(rect.x, rect.y, rect.w, rect.h)
@@ -97,7 +100,7 @@ export function CanvasGrid({
         ctx.restore()
       }
     }
-  }, [size, rows, columns, rowStep, count, cellWidth, cellHeight, gap, draw, background])
+  }, [size, rows, columns, rowStep, count, cellWidth, cellHeight, gap, draw, background, padding])
 
   const schedule = useCallback(() => {
     cancelAnimationFrame(frame.current)
@@ -113,22 +116,23 @@ export function CanvasGrid({
   useEffect(() => {
     const el = scroller.current
     if (!el || !scrollTo || scrollTo.index < 0 || !size.h) return
-    const y = Math.floor(scrollTo.index / columns) * rowStep
-    if (y < el.scrollTop) el.scrollTop = y
-    else if (y + cellHeight > el.scrollTop + size.h) el.scrollTop = y + cellHeight - size.h
-  }, [scrollTo, columns, rowStep, cellHeight, size.h])
+    const y = padding + Math.floor(scrollTo.index / columns) * rowStep
+    if (y - padding < el.scrollTop) el.scrollTop = y - padding
+    else if (y + cellHeight + padding > el.scrollTop + size.h) el.scrollTop = y + cellHeight + padding - size.h
+  }, [scrollTo, columns, rowStep, cellHeight, size.h, padding])
 
   const locate = (clientX: number, clientY: number) => {
     const el = scroller.current
     if (!el) return null
     const box = el.getBoundingClientRect()
     if (clientX < box.left || clientX > box.right || clientY < box.top || clientY > box.bottom) return null
-    const x = clientX - box.left
-    const y = clientY - box.top + el.scrollTop
+    const x = clientX - box.left - padding
+    const y = clientY - box.top + el.scrollTop - padding
     const col = Math.floor(x / (cellWidth + gap))
     const row = Math.floor(y / rowStep)
-    const onCell = col < columns && x - col * (cellWidth + gap) <= cellWidth && y - row * rowStep <= cellHeight
-    const raw = row * columns + Math.min(col, columns - 1)
+    const onCell =
+      x >= 0 && y >= 0 && col < columns && x - col * (cellWidth + gap) <= cellWidth && y - row * rowStep <= cellHeight
+    const raw = Math.max(0, row) * columns + Math.max(0, Math.min(col, columns - 1))
     const index = onCell && raw < count ? raw : -1
     return { index, insert: Math.max(0, Math.min(raw, count)) }
   }

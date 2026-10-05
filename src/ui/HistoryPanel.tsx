@@ -12,7 +12,7 @@ type Props = {
 }
 
 const small =
-  'rounded-md border border-zinc-300 px-2 py-0.5 hover:bg-zinc-100 disabled:opacity-40 dark:border-zinc-700 dark:hover:bg-zinc-800'
+  'rounded-md border border-line h-7 px-2.5 hover:bg-raised disabled:opacity-40'
 
 export function HistoryPanel({ history, onRecording, onClear, onSave, onLoad, onClose }: Props) {
   const text = useRef<HTMLPreElement>(null)
@@ -21,7 +21,7 @@ export function HistoryPanel({ history, onRecording, onClear, onSave, onLoad, on
   }, [history.text])
   return (
     <div
-      className="absolute left-0 top-full z-30 mt-1 w-[28rem] rounded-lg border border-zinc-200 bg-white p-3 shadow-lg dark:border-zinc-700 dark:bg-zinc-900"
+      className="absolute left-0 top-full z-30 mt-1 w-[28rem] rounded-lg border border-line bg-surface p-3 shadow-lg"
       onKeyDown={(e) => e.key === 'Escape' && onClose()}
     >
       <div className="flex items-center gap-2">
@@ -29,7 +29,7 @@ export function HistoryPanel({ history, onRecording, onClear, onSave, onLoad, on
           <input type="checkbox" checked={history.recording} onChange={(e) => onRecording(e.target.checked)} />
           Record
         </label>
-        <span className="text-zinc-500">
+        <span className="text-muted">
           {history.count} command{history.count === 1 ? '' : 's'}
         </span>
         <button type="button" className={`${small} ml-auto`} disabled={!history.count} onClick={onClear}>
@@ -41,14 +41,14 @@ export function HistoryPanel({ history, onRecording, onClear, onSave, onLoad, on
         <button type="button" className={small} onClick={onLoad}>
           Load…
         </button>
-        <button type="button" className="rounded-md px-1.5 py-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800" onClick={onClose} aria-label="Close history">
+        <button type="button" className="rounded-md px-1.5 py-0.5 hover:bg-raised" onClick={onClose} aria-label="Close history">
           ✕
         </button>
       </div>
-      <pre ref={text} className="mt-2 max-h-64 min-h-24 overflow-auto rounded bg-zinc-50 p-2 font-mono text-[11px] leading-snug dark:bg-zinc-950">
+      <pre ref={text} className="mt-2 max-h-64 min-h-24 overflow-auto rounded bg-raised p-2 font-mono text-[11px] leading-snug">
         {history.text || 'No group edits recorded yet.'}
       </pre>
-      <p className="mt-1 text-[11px] text-zinc-500">Reordering is not recorded (as on desktop). Load replaces the journal and applies nothing.</p>
+      <p className="mt-1 text-[11px] text-muted">Reordering is not recorded (as on desktop). Load replaces the journal and applies nothing.</p>
     </div>
   )
 }

@@ -47,6 +47,20 @@ FILES = [
         ),
     ]),
 ]
+# Engines of the Tools menu (Phase 7). All GTK-free; imports fixed by COMMON.
+for _engine in (
+    "clean_kerning", "key_glyphs", "flatten_kerning", "merge_script_groups",
+    "place_composites", "place_ligatures", "cross_pairs", "rename_groups",
+    "round_kerning", "split_groups",
+):
+    FILES.append((f"font_rover/groups_control/{_engine}.py", f"{_engine}.py", []))
+
+# Applied to every vendored file where the text occurs.
+COMMON = [
+    ("from ..languages.compat import", "from .compat import"),
+    ("from ..utils.glyph_order import safe_glyph_order", "from gcweb.fr_font import safe_glyph_order"),
+]
+
 DATA = [("font_rover/data/language_charsets.json", "language_charsets.json")]
 
 HEADER = (
@@ -71,6 +85,10 @@ def main() -> None:
             if old not in text:
                 raise SystemExit(f"{rel}: expected text not found: {old!r}")
             text = text.replace(old, new)
+        for old, new in COMMON:
+            text = text.replace(old, new)
+        if "from .." in text:
+            raise SystemExit(f"{rel}: an import still leaves the package: fix COMMON")
         (DEST / name).write_text(HEADER.format(path=rel, commit=commit) + text)
         print(f"{rel} -> vendor/{name}")
     for rel, name in DATA:

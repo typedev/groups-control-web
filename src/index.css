@@ -1,17 +1,105 @@
 @import "tailwindcss";
+@import "@fontsource-variable/ibm-plex-sans";
 
+/* Theme follows a .dark class on <html> (src/theme.ts), not the media query. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Tokens. A quiet graphite workspace with one ink-blue accent; amber is kept
+ * for "careful" states (Keep Kerning off, read-only). Kerning values keep
+ * their own red / green / orange.
+ */
 :root {
-  color-scheme: light dark;
+  --c-canvas: #e9ebef;   /* behind the panels */
+  --c-surface: #ffffff;  /* panels, dialogs */
+  --c-raised: #f4f5f7;   /* toolbars, headers, inputs at rest */
+  --c-line: #d6d9df;
+  --c-line-strong: #b9bec8;
+  --c-ink: #1b1d22;
+  --c-muted: #646b78;
+  --c-accent: #3348d6;
+  --c-accent-ink: #ffffff;
+  --c-accent-soft: #e4e8fd;
+  --c-careful: #b45309;
+  --c-careful-soft: #fdf1e2;
+  --c-scroll: #c3c7cf;
+}
+
+.dark {
+  --c-canvas: #121318;
+  --c-surface: #1b1d23;
+  --c-raised: #22252c;
+  --c-line: #30343d;
+  --c-line-strong: #454a55;
+  --c-ink: #e7e8eb;
+  --c-muted: #9aa0ac;
+  --c-accent: #8794ff;
+  --c-accent-ink: #11131a;
+  --c-accent-soft: #272c4a;
+  --c-careful: #f0a54a;
+  --c-careful-soft: #3a2a16;
+  --c-scroll: #464b56;
+}
+
+@theme inline {
+  --font-sans: "IBM Plex Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --color-canvas: var(--c-canvas);
+  --color-surface: var(--c-surface);
+  --color-raised: var(--c-raised);
+  --color-line: var(--c-line);
+  --color-line-strong: var(--c-line-strong);
+  --color-ink: var(--c-ink);
+  --color-muted: var(--c-muted);
+  --color-accent: var(--c-accent);
+  --color-accent-ink: var(--c-accent-ink);
+  --color-accent-soft: var(--c-accent-soft);
+  --color-careful: var(--c-careful);
+  --color-careful-soft: var(--c-careful-soft);
 }
 
 html {
-  background: #fafafa;
-  color: #18181b;
+  background: var(--c-canvas);
+  color: var(--c-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1;
+  -webkit-font-smoothing: antialiased;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    background: #0a0a0a;
-    color: #e4e4e7;
+/* Text at 13 px; the root stays 16 px so Tailwind's rem spacing is unchanged. */
+body {
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+/* Thin scrollbars that match the theme. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-scroll) transparent;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--c-scroll);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
   }
 }

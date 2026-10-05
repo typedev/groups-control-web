@@ -36,6 +36,14 @@ export type Refused = [glyph: string, group: string][]
 export type HistoryState = { text: string; count: number; recording: boolean }
 
 /** groups_io.py scopes: kerning groups, other groups, or both. */
+/** A Tools menu entry (py/gcweb/tools.py). */
+export type ToolOption =
+  | { id: string; type: 'radio'; label: string; default: string; choices: [string, string][] }
+  | { id: string; type: 'checkbox'; label: string; default: boolean }
+  | { id: string; type: 'entry'; label: string; default: string; placeholder?: string }
+export type ToolSpec = { id: string; name: string; description: string; options: ToolOption[] }
+export type ToolPlan = { lines: string[]; changes: boolean }
+
 export type GroupScope = 'kern' | 'other' | 'all'
 export type ImportPreview = { lines: string[]; ok: boolean; changes: boolean; imported: number }
 
@@ -67,6 +75,9 @@ export type Api = {
   sessionState: () => string
   restoreState: (state: string) => OpResult<null>
   loadHistory: (text: string) => HistoryState & { notes: string[] }
+  toolList: () => ToolSpec[]
+  toolPlan: (id: string, options: Record<string, unknown>) => ToolPlan
+  toolApply: () => OpResult<null>
   history: () => HistoryState
   setHistoryRecording: (on: boolean) => HistoryState
   clearHistory: () => HistoryState

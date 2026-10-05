@@ -22,12 +22,14 @@ export type Theme = {
   glyph: string
   label: string
   badge: string
+  /** Selection outline — the UI accent (src/index.css --c-accent). */
+  accent: string
 }
 
-export const themeFor = (dark: boolean): Theme =>
+export const themeFor = (dark: boolean, accent: string): Theme =>
   dark
-    ? { cellBg: '#282828', glyph: '#e4e4e7', label: 'rgba(255,255,255,0.7)', badge: '#cccccc' }
-    : { cellBg: '#f0f0f0', glyph: '#000000', label: 'rgba(0,0,0,0.7)', badge: '#333333' }
+    ? { cellBg: '#262930', glyph: '#e7e8eb', label: 'rgba(231,232,235,0.72)', badge: '#c4c8d0', accent }
+    : { cellBg: '#f0f1f3', glyph: '#000000', label: 'rgba(27,29,34,0.7)', badge: '#3a3f48', accent }
 
 function roundedRect(ctx: CanvasRenderingContext2D, r: CellRect, radius: number, inset = 0) {
   ctx.beginPath()
@@ -74,9 +76,9 @@ function nameLabel(ctx: CanvasRenderingContext2D, name: string, r: CellRect, col
   ctx.fillText(text, r.x + r.w / 2, r.y + r.h - 2)
 }
 
-function selectionBorder(ctx: CanvasRenderingContext2D, r: CellRect, dashed = false) {
+function selectionBorder(ctx: CanvasRenderingContext2D, r: CellRect, dashed = false, color = ACCENT) {
   ctx.save()
-  ctx.strokeStyle = ACCENT
+  ctx.strokeStyle = color
   ctx.lineWidth = 3
   if (dashed) ctx.setLineDash([4, 3])
   roundedRect(ctx, r, 8, 1.5)
@@ -158,7 +160,7 @@ export function drawFontCell(
   nameLabel(ctx, name, r, theme.label)
   if (state.mark === 'grouped') groupedMark(ctx, r.x + 3, r.y + 3)
   else if (state.mark === 'kerned') kernedMark(ctx, r.x + 3, r.y + 3)
-  if (state.selected) selectionBorder(ctx, r)
+  if (state.selected) selectionBorder(ctx, r, false, theme.accent)
 }
 
 // -- content grid (members of the active group) --------------------------------------
@@ -198,7 +200,7 @@ export function drawContentCell(
       ctx.fillText(state.badge.text, r.x + 4, r.y + 2)
     }
   }
-  if (state.selected) selectionBorder(ctx, r)
+  if (state.selected) selectionBorder(ctx, r, false, theme.accent)
 }
 
 /** W:1650-1703 _compute_margin_labels — badges for one group's members. */
@@ -228,15 +230,19 @@ export function drawGroupCell(
   side: SideId,
   validation: GroupValidation,
   state: GroupCellState,
+  accent = ACCENT,
 ) {
   const { x, y, w, h } = r
   ctx.fillStyle = '#f0f0f0'
   roundedRect(ctx, r, 8)
   ctx.fill()
 
-  // Side half, slanted along the italic angle.
+  // Side half, slanted along the italic angle, inside the cell's rounded corners.
   const cx = x + w / 2
   const shift = Math.tan((font.info.italicAngle * Math.PI) / 180) * (h / 2)
+  ctx.save()
+  roundedRect(ctx, r, 8)
+  ctx.clip()
   ctx.fillStyle = 'rgba(128,128,128,0.6)'
   ctx.beginPath()
   if (side === 'kern1') {
@@ -252,6 +258,7 @@ export function drawGroupCell(
   }
   ctx.closePath()
   ctx.fill()
+  ctx.restore()
 
   const members = font.data.groups[group] ?? []
   if (validation.empty) {
@@ -315,13 +322,13 @@ export function drawGroupCell(
     roundedRect(ctx, r, 8, 1.5)
     ctx.stroke()
     ctx.restore()
-  } else if (state.selected) selectionBorder(ctx, r)
-  else if (state.active) selectionBorder(ctx, r, true)
+  } else if (state.selected) selectionBorder(ctx, r, false, accent)
+  else if (state.active) selectionBorder(ctx, r, true, accent)
 }
 
 /** Drop position marker: a bar at the left edge of a cell (or right edge of the last). */
-export function drawInsertBar(ctx: CanvasRenderingContext2D, r: CellRect, atEnd: boolean) {
-  ctx.fillStyle = ACCENT
+export function drawInsertBar(ctx: CanvasRenderingContext2D, r: CellRect, atEnd: boolean, color = ACCENT) {
+  ctx.fillStyle = color
   const x = atEnd ? r.x + r.w - 2 : r.x
   ctx.fillRect(x, r.y + 4, 3, r.h - 8)
 }

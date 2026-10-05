@@ -6,6 +6,24 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Appearance menu in the header: theme (system, light, dark) and one of five
+  accent colours (blue, teal, violet, rose, graphite), each tuned for both
+  themes; kept per browser; canvases follow it too.
+
+### Changed
+- Refreshed UI: IBM Plex Sans (bundled, no font requests), one set of theme
+  tokens, 32 px controls with segmented switches and menus, panels as cards,
+  thin scrollbars. Keep Kerning moved to the front of the toolbar as a large
+  switch; when off it turns amber and says that kerning is dropped. A help
+  popover explains what on and off do to each kind of edit. Side 1 / Side 2
+  is an accent-coloured switch.
+- Tools menu (Phase 7), Font-Rover's Groups Control board scripts for one
+  UFO: Clean Groups & Kerning, Fix Key Glyph Position, Flatten Kerning, Merge
+  Script Groups, Place Composites into Groups, Place Ligatures into Groups,
+  Remove Cross-Language Pairs, Rename Groups, Round Kerning, Split Groups by
+  Script. One dialog: options → plan report (nothing changes) → Apply, run on
+  a working copy and taken in one step. Engines vendored from
+  `font_rover/groups_control/`.
 - Margin editing (Phase 6, see docs/RESEARCH_MARGINS.md): click a glyph in
   the dependency line; arrows change the right margin, Alt+arrows the left,
   Shift ×10 (desktop keys). Composites follow their base glyph (recursively);

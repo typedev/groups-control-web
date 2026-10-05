@@ -19,6 +19,7 @@ from gcweb.document import delta as delta_of
 from gcweb.export import font_payload, glyph_record
 from gcweb.lang import LangChecker
 from gcweb.preview import KernEdit, dependency_line, pair_rows
+from gcweb.tools import TOOLS, WorkFont, plan_tool
 from gcweb.fr_font import FRFont
 from gcweb.vendor import groups_io
 from gcweb.vendor.groups_history import history_to_text, parse_history
@@ -40,6 +41,7 @@ _lang: LangChecker | None = None
 _kern: KernEdit | None = None
 _pending_save: dict[str, bytes | None] = {}
 _pending_import: groups_io.ImportReport | None = None
+_pending_tool = None
 
 
 def _require() -> UfoDocument:
@@ -289,6 +291,34 @@ def import_apply() -> str:
         report.result.kerning,
         {"imported": report.imported},
     )
+
+
+# -- tools (Font-Rover Groups Control board scripts) ---------------------------------
+
+
+def tool_list() -> str:
+    return json.dumps([t.spec() for t in TOOLS.values()])
+
+
+def tool_plan(tool_id: str, options_json: str) -> str:
+    """Dry run: report lines; nothing changes until tool_apply()."""
+    global _pending_tool
+    _pending_tool = plan_tool(_require(), tool_id, json.loads(options_json))
+    return json.dumps({"lines": _pending_tool.lines, "changes": _pending_tool.changes})
+
+
+def tool_apply() -> str:
+    """Run the planned tool on a working copy and take its groups and kerning."""
+    global _pending_tool
+    plan, _pending_tool = _pending_tool, None
+    if plan is None:
+        raise RuntimeError("nothing planned")
+    doc = _require()
+    if doc.read_only_reason:
+        raise RuntimeError(doc.read_only_reason)
+    work = WorkFont(doc)
+    plan.apply(work, FontGroupsManager(work))
+    return _replace_all(dict(work.groups), dict(work.kerning), None)
 
 
 # -- session (autosave) -------------------------------------------------------------

@@ -272,7 +272,7 @@ Write `docs/RESEARCH_MARGINS.md` before code:
 - italic angled margins (`utils/angled_margins.py`), beam margins.
 Then: margin mode in the preview, writing `.glif`.
 
-### Phase 7 — Optional: tools (former board scripts)
+### Phase 7 — Optional: tools (former board scripts) — done for one UFO
 As a Tools menu (not a script system): Split by Script, Merge Script Groups,
 Place Composites, Place Ligatures, Fix Key Glyph Position, Rename Groups,
 Clean, Round, Flatten Kerning, Remove Cross-Language Pairs, Diff, Copy Kerning
