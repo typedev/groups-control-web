@@ -143,6 +143,9 @@ never touches ufoLib2 directly.
 - **Minimal diff is a hard requirement.** Rewrite only `groups.plist` and
   `kerning.plist` (and `.glif` files once margins are editable, Phase 6) —
   never re-save the whole font.
+- **Changed plists keep the original file's style** (header, indent, key
+  order) — fontTools' writer would rewrite the whole file; see DECISIONS.md §5.
+  UFO 2 sources open read-only until kerning-group down-conversion exists.
 - **A file whose content equals the original is not written at all** —
   including after an edit is reverted by hand (compare with the original
   content, not a dirty flag). Open → save without edits = zero diff by
@@ -166,8 +169,8 @@ never touches ufoLib2 directly.
   typedev.github.io) for conventions; pick the UI approach in Phase 0
   (vanilla TS vs a light framework for the chrome — heavy views are canvas
   either way).
-- Pyodide pinned (0.28.x has fonttools, lxml, brotli, attrs). Loaded from
-  jsDelivr; our own wheels in `public/wheels/`, pinned: `ufo-spacing-lib`
+- Pyodide pinned (314.0.7: Python 3.14, fonttools 4.62 — see DECISIONS.md).
+  Loaded from jsDelivr; our own wheels in `public/wheels/`, pinned: `ufo-spacing-lib`
   (pure, PyPI 0.4.3), `ufoLib2`.
 - Python package of the worker: `py/gcweb/`, testable in normal CPython with
   `uv run pytest` (no browser needed for logic tests).
@@ -289,8 +292,8 @@ Groups, Interpolate Kerning) wait for [LATER.md](LATER.md).
 | # | Risk | Mitigation |
 |---|---|---|
 | R1 | `ufo-spacing-lib` assumes fontParts beyond duck typing | Phase 0 inventory; tracked-mapping adapter; upstream fix if cleaner |
-| R2 | Startup weight (Pyodide ~10–15 MB) | loader with progress, cache via service worker |
-| R3 | Big fonts: outline transfer, grid speed | send outlines lazily per visible cell, `Path2D` cache, virtualized canvas |
+| R2 | Startup weight (Pyodide ≈ 7.3 MB compressed; 2.7 s first / 1.6 s cached to ready) | loader with progress; HTTP cache, service worker optional |
+| R3 | Big fonts: outline transfer, grid speed | measured fine eagerly (3100 glyphs ≈ 1 s, 3 MB); `Path2D` cache, virtualized canvas |
 | R4 | Vendored code drifts from desktop | `vendor_sync.py` + parity tests; upstream-first fixes |
 | R5 | Folder write-back only in Chromium | documented; download fallback everywhere |
 

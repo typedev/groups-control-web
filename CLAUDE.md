@@ -8,7 +8,7 @@ Guidance for Claude Code in this repository.
 groups + kerning editor). Static site on GitHub Pages, no server: Python
 (Pyodide, in a Web Worker) owns the data and every mutation; TypeScript +
 canvas draws the UI. The plan, phases and decisions: [docs/PLAN.md](docs/PLAN.md)
-(read it first), [docs/DECISIONS.md](docs/DECISIONS.md) once it exists.
+(read it first), [docs/DECISIONS.md](docs/DECISIONS.md).
 
 The desktop original is `~/WORK/Font-Rover` — **read-only from here**.
 Its `docs/CLAUDE_GROUPS_CONTROL.md` is the behavioural spec.
