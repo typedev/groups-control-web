@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Session and exchange (Phase 5): autosave of unsaved edits in this browser
+  (IndexedDB: the opened files, groups, kerning, history and the folder
+  handle) with Restore / Discard on the start screen; Import groups from a
+  KernTool4 text file (scope: kerning / other / all; replaces and carries
+  kerning, with a report to confirm before anything changes) and Export
+  groups (Font-Rover `groups_io.py`, vendored); History Save / Load
+  (Load replaces the journal and applies nothing).
 - Preview and kerning editing (Phase 4): bottom preview with the dependency
   line of the selected group or glyph (Members / All / Smart chains, control
   glyphs per script and case, mismatch / non-member colours, checked-side
@@ -19,6 +26,10 @@ All notable changes to this project are documented here. The format follows
 - Delete Pairs in the pairs list (button, Backspace / Delete, confirmation).
 - Error boundary: a render error shows a message with Reload instead of a
   blank page.
+
+### Changed
+- Preview margin labels follow the desktop glyph line: "72 ▶" at the right
+  edge, "◀ 33" one line lower at the left edge.
 
 ### Fixed
 - Scrolling the pairs list crashed the page (event read after React cleared

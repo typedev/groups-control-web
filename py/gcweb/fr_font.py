@@ -66,6 +66,10 @@ class FRFont:
         return self._doc.master.groups
 
     @property
+    def kerning(self):
+        return self._doc.master.kerning
+
+    @property
     def glyphOrder(self) -> list[str]:
         return self._doc.glyph_order()
 

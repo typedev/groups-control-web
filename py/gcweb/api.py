@@ -15,10 +15,13 @@ import zipfile
 from ufo_spacing_lib.groups_core import FontGroupsManager
 
 from gcweb.document import GROUPS_FILE, KERNING_FILE, UfoDocument
+from gcweb.document import delta as delta_of
 from gcweb.export import font_payload
 from gcweb.lang import LangChecker
 from gcweb.preview import KernEdit, dependency_line, pair_rows
-from gcweb.vendor.groups_history import history_to_text
+from gcweb.fr_font import FRFont
+from gcweb.vendor import groups_io
+from gcweb.vendor.groups_history import history_to_text, parse_history
 from gcweb.vendor.naming import name_problem
 
 KERN1 = "public.kern1."
@@ -36,6 +39,7 @@ _manager: FontGroupsManager | None = None
 _lang: LangChecker | None = None
 _kern: KernEdit | None = None
 _pending_save: dict[str, bytes | None] = {}
+_pending_import: groups_io.ImportReport | None = None
 
 
 def _require() -> UfoDocument:
@@ -84,6 +88,19 @@ def _lang_update(delta: dict) -> dict:
 def _finish(result) -> str:
     doc = _require()
     delta = doc.take_delta()
+    delta["lang"] = _lang_update(delta)
+    return json.dumps({"result": result, "delta": delta, "dirty": doc.is_dirty()})
+
+
+def _replace_all(groups: dict, kerning: dict, result) -> str:
+    """Replace groups and kerning wholesale (import, session restore) as one step.
+
+    reset_to() hands back its own diff, so the delta is built from that.
+    """
+    doc = _require()
+    view = doc.master
+    delta = delta_of(0, view.groups.reset_to(groups), view.kerning.reset_to(kerning))
+    _manager.makeReverseGroupsMapping()
     delta["lang"] = _lang_update(delta)
     return json.dumps({"result": result, "delta": delta, "dirty": doc.is_dirty()})
 
@@ -230,6 +247,76 @@ def kern_exception(left: str, right: str, side: str) -> str:
     return _finish({"key": _kern.exception(left, right, side)})
 
 
+# -- import / export of groups (KernTool4 text, Font-Rover groups_io.py) ---------------
+
+
+def export_groups(scope: str) -> str:
+    """`name=g1,g2` lines, sorted by group name."""
+    return json.dumps({"text": groups_io.format_groups(_require().master.groups, scope)})
+
+
+def import_preview(text: str, scope: str) -> str:
+    """Dry run: what importing would change. Nothing is written until import_apply()."""
+    global _pending_import
+    groups, problems = groups_io.parse_groups(text)
+    _pending_import = groups_io.import_groups(FRFont(_require()), groups, scope, problems=problems)
+    view = _require().master
+    changes = (
+        _pending_import.result.groups != dict(view.groups)
+        or _pending_import.result.kerning != dict(view.kerning)
+    )
+    return json.dumps(
+        {
+            "lines": groups_io.report_lines(_pending_import),
+            "ok": _pending_import.ok,
+            "changes": changes,
+            "imported": _pending_import.imported,
+        }
+    )
+
+
+def import_apply() -> str:
+    """Replace groups and kerning with the previewed import (one step)."""
+    global _pending_import
+    report = _pending_import
+    if report is None:
+        raise RuntimeError("nothing to import")
+    _pending_import = None
+    if not report.ok:
+        raise RuntimeError("the import cannot be applied")
+    return _replace_all(
+        {k: tuple(v) for k, v in report.result.groups.items()},
+        report.result.kerning,
+        {"imported": report.imported},
+    )
+
+
+# -- session (autosave) -------------------------------------------------------------
+
+
+def session_state() -> str:
+    """Current groups, kerning and history, to restore on top of the opened file."""
+    view = _require().master
+    return json.dumps(
+        {
+            "groups": {k: list(v) for k, v in view.groups.items()},
+            "kerning": [[l, r, v] for (l, r), v in view.kerning.items()],
+            "history": [list(e) for e in _manager.history],
+        }
+    )
+
+
+def restore_state(state_json: str) -> str:
+    """Put a saved session's groups/kerning/history back; returns the delta."""
+    state = json.loads(state_json)
+    _manager.history[:] = [tuple(e) for e in state.get("history", [])]
+    return _replace_all(
+        {k: tuple(v) for k, v in state["groups"].items()},
+        {(l, r): v for l, r, v in state["kerning"]},
+        None,
+    )
+
+
 # -- history journal (manager.history, Font-Rover groups_history.py format) --------
 
 
@@ -254,6 +341,13 @@ def set_history_recording(on: bool) -> str:
 def clear_history() -> str:
     _manager.clear_history()
     return history()
+
+
+def load_history(text: str) -> str:
+    """Replace the journal with a saved one (applies nothing); returns notes."""
+    entries, notes = parse_history(text)
+    _manager.history[:] = entries
+    return json.dumps({"notes": notes, **json.loads(history())})
 
 
 def move_in_group(group: str, glyphs_json: str, index: int) -> str:

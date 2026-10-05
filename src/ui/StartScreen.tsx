@@ -1,6 +1,7 @@
 import { useRef, useState, type DragEvent } from 'react'
 import { canPickFolder, fromDrop, fromFile, pickFolder, type FontInput } from '../files'
 import type { RuntimeState } from '../runtime'
+import type { StoredSession } from '../session'
 
 const STAGE_LABEL = {
   runtime: 'Loading Python…',
@@ -13,9 +14,12 @@ type Props = {
   opening: string | null
   error: string | null
   onOpen: (pending: Promise<FontInput | null>) => void
+  stored: StoredSession | null
+  onRestore: () => void
+  onDiscard: () => void
 }
 
-export function StartScreen({ runtime, opening, error, onOpen }: Props) {
+export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore, onDiscard }: Props) {
   const [over, setOver] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -86,6 +90,21 @@ export function StartScreen({ runtime, opening, error, onOpen }: Props) {
             </>
           )}
         </div>
+
+        {stored && !opening && (
+          <div className="mt-4 flex items-center gap-3 rounded-md border border-blue-300 bg-blue-50 px-3 py-2 text-sm dark:border-blue-800 dark:bg-blue-950/40">
+            <span className="min-w-0 flex-1">
+              Unsaved edits to <span className="font-medium">{stored.name}</span>
+              {stored.savedAt ? ` from ${new Date(stored.savedAt).toLocaleString()}` : ''}
+            </span>
+            <button type="button" className="rounded-md bg-blue-600 px-2.5 py-1 text-white hover:bg-blue-500" onClick={onRestore}>
+              Restore
+            </button>
+            <button type="button" className="rounded-md px-2 py-1 hover:bg-blue-100 dark:hover:bg-blue-900/50" onClick={onDiscard}>
+              Discard
+            </button>
+          </div>
+        )}
 
         {error && (
           <p role="alert" className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950/50 dark:text-red-200">

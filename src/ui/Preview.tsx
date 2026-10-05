@@ -28,7 +28,8 @@ type Props = {
 
 const PAD = 16
 const KERN_ROW = 30
-const MARGIN_ROW = 16
+/** Two label lines: right margin, then left margin. */
+const MARGIN_ROW = 26
 
 const COLORS = {
   light: { text: '#000000', bg: '#ffffff', mismatch: 'rgb(115,10,26)', mismatchLabel: 'rgb(230,38,38)', label: 'rgba(0,0,0,0.55)' },
@@ -178,7 +179,7 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
       width = Math.max(width, x + PAD)
     }
     const lineBox = px * 1.6
-    const rowHeight = lineBox + (pairsMode ? KERN_ROW : 0) + (showMargins ? MARGIN_ROW + (pairsMode ? 11 : 0) : 0) + (showNames ? 14 : 0)
+    const rowHeight = lineBox + (pairsMode ? KERN_ROW : 0) + (showMargins ? MARGIN_ROW : 0) + (showNames ? 14 : 0)
     return { rows, xs, kerns, rowHeight, ascent: lineBox * 0.7, width, height: rows.length * rowHeight + PAD, scale }
   }, [font, tokens, pairRows, pairsMode, sizePt, view.w, showMargins, showNames])
 
@@ -251,19 +252,22 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
         ctx.restore()
       })
 
-      let y = top + ascent / 0.7 + 12
+      let y = top + ascent / 0.7 + 11
       if (showMargins) {
+        // glyph_line/view.py _draw_margins: right margin "72 ▶" at the right
+        // edge, left margin "◀ 33" one line lower at the left edge (9 px).
+        const size = 9
+        const tri = 3
+        const gap = 2
+        ctx.font = `${size}px system-ui, sans-serif`
         ctx.textBaseline = 'alphabetic'
-        // Labels of tightly kerned neighbours would run together ("7233"):
-        // one that overlaps the previous label drops to a second line.
-        let lastEnd = -Infinity
-        const label = (text: string, x: number, align: 'left' | 'right') => {
-          const w = ctx.measureText(text).width
-          const start = align === 'left' ? x : x - w
-          const dy = start < lastEnd + 3 ? 11 : 0
-          ctx.textAlign = align
-          ctx.fillText(text, x, y + dy)
-          if (!dy) lastEnd = start + w
+        const triangle = (x: number, cy: number, right: boolean) => {
+          ctx.beginPath()
+          ctx.moveTo(x, cy - tri)
+          ctx.lineTo(right ? x + tri * 1.5 : x - tri * 1.5, cy)
+          ctx.lineTo(x, cy + tri)
+          ctx.closePath()
+          ctx.fill()
         }
         row.forEach((t, i) => {
           if (t.ctx) return
@@ -271,24 +275,28 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
           if (!g) return
           const x = xs[r][i]
           const right = x + g.w * scale
-          const showLeft = pairsMode || side === 'kern2'
-          const showRight = pairsMode || side === 'kern1'
-          if (showLeft) {
-            const m = pairsMode ? g.l : t.g ?? null
-            if (m !== null) {
-              ctx.fillStyle = !pairsMode && t.x ? colors.mismatchLabel : colors.label
-              label(String(pyRound(m)), x + 1, 'left')
-            }
-          }
-          if (showRight) {
+          ctx.fillStyle = !pairsMode && t.x ? colors.mismatchLabel : colors.label
+          if (pairsMode || side === 'kern1') {
             const m = pairsMode ? g.r : t.g ?? null
             if (m !== null) {
-              ctx.fillStyle = !pairsMode && t.x ? colors.mismatchLabel : colors.label
-              label(String(pyRound(m)), right - 1, 'right')
+              const text = String(pyRound(m))
+              triangle(right - tri, y - size / 3, true)
+              ctx.textAlign = 'right'
+              ctx.fillText(text, right - tri * 1.5 - gap, y)
+            }
+          }
+          if (pairsMode || side === 'kern2') {
+            const m = pairsMode ? g.l : t.g ?? null
+            if (m !== null) {
+              const ly = y + size + 3
+              triangle(x + tri, ly - size / 3, false)
+              ctx.textAlign = 'left'
+              ctx.fillText(String(pyRound(m)), x + tri * 1.5 + gap, ly)
             }
           }
         })
-        y += MARGIN_ROW + (pairsMode ? 11 : 0)
+        ctx.font = '11px system-ui, sans-serif'
+        y += MARGIN_ROW
       }
       if (showNames) {
         ctx.fillStyle = colors.label

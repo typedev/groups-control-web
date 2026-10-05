@@ -3,6 +3,7 @@ import { InputError, type FontInput } from './files'
 import { FontModel } from './model/font'
 import { python, useRuntime } from './runtime'
 import { download, ufozName, writeToFolder } from './save'
+import { forgetSession, loadSession, rememberFiles, rememberState, type StoredSession } from './session'
 import { WorkerError } from './worker/client'
 import type { FontSummary, OpResult } from './worker/protocol'
 import { useDialogs } from './ui/Dialog'
@@ -28,20 +29,37 @@ export function App() {
   const [error, setError] = useState<string | null>(null)
   const [stats, setStats] = useState('')
   const [status, setStatus] = useState<string | null>(null)
+  const [stored, setStored] = useState<StoredSession | null>(null)
   const { ask, element: dialog } = useDialogs()
+
+  // A session with unsaved edits from an earlier visit can be restored.
+  useEffect(() => {
+    void loadSession().then((s) => setStored(s?.state ? s : null))
+  }, [])
   const fontRef = useRef(font)
   fontRef.current = font
 
-  const open = useCallback(async (pending: Promise<FontInput | null>) => {
+  const open = useCallback(async (pending: Promise<FontInput | null>, restore: string | null = null) => {
     setError(null)
     try {
       const got = await pending
       if (!got) return
       const { input, handle } = got
       setOpening(input.name)
+      // Copies the bytes synchronously, before they are transferred to the worker.
+      const remembered = rememberFiles(input, handle)
       const summary = await python.call('open', [input], input.files.map((f) => f.bytes))
-      const model = new FontModel(await python.call('fontData', []))
-      setFont({ name: input.name, kind: input.kind, summary, handle, model, dirty: false })
+      let model = new FontModel(await python.call('fontData', []))
+      let dirty = false
+      if (restore) {
+        const res = await python.call('restoreState', [restore])
+        model = model.withDelta(res.delta)
+        dirty = res.dirty
+      }
+      await remembered
+      if (restore) await rememberState(dirty ? restore : null)
+      setStored(null)
+      setFont({ name: input.name, kind: input.kind, summary, handle, model, dirty })
     } catch (err) {
       if (err instanceof InputError || err instanceof WorkerError) setError(err.message)
       else {
@@ -130,10 +148,32 @@ export function App() {
       if (answer.value !== 'close') return
     }
     await python.call('close', [])
+    await forgetSession()
     setFont(null)
     setStats('')
     setStatus(null)
   }, [ask])
+
+  // Autosave: one second after the last edit, store the state (or drop it once clean).
+  useEffect(() => {
+    if (!font) return
+    const id = setTimeout(async () => {
+      if (font.dirty) await rememberState(await python.call('sessionState', []))
+      else await rememberState(null)
+    }, 1000)
+    return () => clearTimeout(id)
+  }, [font])
+
+  const restoreSession = useCallback(async () => {
+    const s = await loadSession()
+    if (!s?.state) return
+    await open(Promise.resolve({ input: { name: s.name, kind: s.kind, files: s.files }, handle: s.handle }), s.state)
+  }, [open])
+
+  const discardSession = useCallback(async () => {
+    await forgetSession()
+    setStored(null)
+  }, [])
 
   // Cmd/Ctrl+S saves; leaving the page with unsaved edits asks first.
   useEffect(() => {
@@ -196,9 +236,17 @@ export function App() {
       </header>
       <main className="flex min-h-0 flex-1 flex-col">
         {font ? (
-          <GroupsControl font={font.model} readOnly={readOnly} run={run} ask={ask} onStats={setStats} />
+          <GroupsControl font={font.model} fontName={font.name} readOnly={readOnly} run={run} ask={ask} onStats={setStats} />
         ) : (
-          <StartScreen runtime={runtime} opening={opening} error={error} onOpen={open} />
+          <StartScreen
+            runtime={runtime}
+            opening={opening}
+            error={error}
+            onOpen={(p) => open(p)}
+            stored={stored}
+            onRestore={restoreSession}
+            onDiscard={discardSession}
+          />
         )}
       </main>
       {dialog}

@@ -52,7 +52,7 @@ def kerning_bytes(kerning, style: PlistStyle) -> bytes | None:
     return style.dumps(nested)
 
 
-def delta(master: int, view: MasterView, groups_diff, kerning_diff) -> dict:
+def delta(master: int, groups_diff, kerning_diff) -> dict:
     """JSON-ready delta for the TS mirror."""
     g_changed, g_removed = groups_diff
     k_changed, k_removed = kerning_diff
@@ -137,14 +137,13 @@ class UfoDocument:
 
     def take_delta(self) -> dict:
         view = self.master
-        return delta(0, view, view.groups.take_diff(), view.kerning.take_diff())
+        return delta(0, view.groups.take_diff(), view.kerning.take_diff())
 
     def revert(self) -> dict:
         """Revert to file: back to the state of the last open/save."""
         view = self.master
         return delta(
             0,
-            view,
             view.groups.reset_to(self._baseline_groups),
             view.kerning.reset_to(self._baseline_kerning),
         )

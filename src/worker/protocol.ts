@@ -33,6 +33,10 @@ export type Refused = [glyph: string, group: string][]
 
 export type HistoryState = { text: string; count: number; recording: boolean }
 
+/** groups_io.py scopes: kerning groups, other groups, or both. */
+export type GroupScope = 'kern' | 'other' | 'all'
+export type ImportPreview = { lines: string[]; ok: boolean; changes: boolean; imported: number }
+
 /** A file to write into the opened folder; bytes null = delete it. */
 export type SavedFile = { name: string; bytes: ArrayBuffer | null }
 
@@ -54,6 +58,12 @@ export type Api = {
   kernNudge: (left: string, right: string, delta: number) => OpResult<{ key: [string, string] }>
   kernRemove: (left: string, right: string) => OpResult<{ key: [string, string] | null }>
   kernException: (left: string, right: string, side: 'left' | 'right' | 'both') => OpResult<{ key: [string, string] }>
+  exportGroups: (scope: GroupScope) => { text: string }
+  importPreview: (text: string, scope: GroupScope) => ImportPreview
+  importApply: () => OpResult<{ imported: number }>
+  sessionState: () => string
+  restoreState: (state: string) => OpResult<null>
+  loadHistory: (text: string) => HistoryState & { notes: string[] }
   history: () => HistoryState
   setHistoryRecording: (on: boolean) => HistoryState
   clearHistory: () => HistoryState

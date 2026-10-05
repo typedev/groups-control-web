@@ -46,9 +46,9 @@ export function Dialog({ spec }: { spec: DialogSpec }) {
         if (e.key === 'Escape') spec.onClose(null, text)
       }}
     >
-      <div role="dialog" aria-modal="true" aria-label={spec.title} className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl dark:bg-zinc-900">
+      <div role="dialog" aria-modal="true" aria-label={spec.title} className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl dark:bg-zinc-900">
         <h2 className="text-base font-semibold">{spec.title}</h2>
-        {spec.body && <div className="mt-2 whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">{spec.body}</div>}
+        {spec.body && <div className="mt-2 max-h-[50vh] overflow-auto whitespace-pre-wrap text-sm text-zinc-700 dark:text-zinc-300">{spec.body}</div>}
         {spec.input && (
           <input
             ref={input}
@@ -61,13 +61,13 @@ export function Dialog({ spec }: { spec: DialogSpec }) {
             }}
           />
         )}
-        <div className="mt-5 flex justify-end gap-2">
+        <div className="mt-5 flex flex-wrap justify-end gap-2">
           {spec.buttons.map((b, i) => (
             <button
               key={b.value}
               ref={i === spec.buttons.length - 1 ? first : undefined}
               type="button"
-              className={`rounded-md px-3 py-1.5 text-sm ${BUTTON[b.kind ?? 'default']}`}
+              className={`whitespace-nowrap rounded-md px-3 py-1.5 text-sm ${BUTTON[b.kind ?? 'default']}`}
               onClick={() => spec.onClose(b.value, text)}
             >
               {b.label}

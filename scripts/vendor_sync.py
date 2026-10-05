@@ -38,6 +38,7 @@ FILES = [
         ),
     ]),
     ("font_rover/groups_control/groups_history.py", "groups_history.py", []),
+    ("font_rover/groups_control/groups_io.py", "groups_io.py", []),
     ("font_rover/groups_control/copy_groups.py", "copy_groups.py", [
         # No processes in Pyodide; threads keep the API (and run serially there).
         (

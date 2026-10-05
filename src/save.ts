@@ -32,8 +32,9 @@ export function ufozName(fontName: string): string {
   return fontName.replace(/\.ufo$/i, '').replace(/\.ufoz$/i, '') + '.ufoz'
 }
 
-export function download(name: string, bytes: ArrayBuffer): void {
-  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/zip' }))
+export function download(name: string, data: ArrayBuffer | string): void {
+  const type = typeof data === 'string' ? 'text/plain;charset=utf-8' : 'application/zip'
+  const url = URL.createObjectURL(new Blob([data], { type }))
   const a = document.createElement('a')
   a.href = url
   a.download = name
@@ -41,4 +42,9 @@ export function download(name: string, bytes: ArrayBuffer): void {
   a.click()
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 10_000)
+}
+
+/** `Font.ufo` / `Font.ufoz` → `Font_groups.txt` style names. */
+export function sidecarName(fontName: string, suffix: string): string {
+  return fontName.replace(/\.ufoz?$/i, '') + suffix
 }

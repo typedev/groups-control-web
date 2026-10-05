@@ -15,7 +15,8 @@ import {
 } from '../model/font'
 import { freeName, nameProblem } from '../model/naming'
 import { buildPairRows } from '../model/pairs'
-import type { HistoryState, OpResult, Refused } from '../worker/protocol'
+import type { GroupScope, HistoryState, OpResult, Refused } from '../worker/protocol'
+import { download, sidecarName } from '../save'
 import { python } from '../runtime'
 import { CanvasGrid, type CellRect, type GridHandle } from './canvas/CanvasGrid'
 import {
@@ -42,6 +43,8 @@ export type Run = <R>(call: () => Promise<OpResult<R>>) => Promise<OpResult<R> |
 
 type Props = {
   font: FontModel
+  /** Opened file name, for exported file names. */
+  fontName: string
   readOnly: boolean
   run: Run
   ask: Ask
@@ -102,7 +105,7 @@ type DropTarget =
   | null
 type Drag = { source: DragSource; names: string[]; x0: number; y0: number; active: boolean; x: number; y: number }
 
-export function GroupsControl({ font, readOnly, run, ask, onStats }: Props) {
+export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: Props) {
   const dark = useDark()
   const theme = themeFor(dark)
   const [side, setSide] = useState<SideId>('kern1')
@@ -401,6 +404,72 @@ export function GroupsControl({ font, readOnly, run, ask, onStats }: Props) {
     if (await run(() => python.call('deletePairs', [pairs]))) setPairSelection(new Set())
   }
 
+  // -- import / export (Font-Rover import_export.py) -----------------------------------
+
+  const [ioOpen, setIoOpen] = useState(false)
+  const importInput = useRef<HTMLInputElement>(null)
+  const historyInput = useRef<HTMLInputElement>(null)
+
+  const exportGroups = async (scope: GroupScope) => {
+    setIoOpen(false)
+    const { text } = await python.call('exportGroups', [scope])
+    download(sidecarName(fontName, scope === 'kern' ? '_kern_groups.txt' : scope === 'other' ? '_other_groups.txt' : '_groups.txt'), text)
+  }
+
+  const importGroups = async (file: File) => {
+    const text = await file.text()
+    const pick = await ask({
+      title: `Import groups from ${file.name}`,
+      body: 'Import replaces the chosen groups of this font with those in the file. Kerning follows the new membership.',
+      buttons: [
+        { label: 'Cancel', value: 'cancel' },
+        { label: 'Other groups', value: 'other' },
+        { label: 'Kerning groups', value: 'kern' },
+        { label: 'All groups', value: 'all', kind: 'suggested' },
+      ],
+    })
+    if (!pick.value || pick.value === 'cancel') return
+    const scope = pick.value as GroupScope
+    let preview
+    try {
+      preview = await python.call('importPreview', [text, scope])
+    } catch (err) {
+      await ask({ title: 'Cannot import', body: err instanceof Error ? err.message : String(err), buttons: [{ label: 'OK', value: 'ok', kind: 'suggested' }] })
+      return
+    }
+    const body = preview.lines.join('\n')
+    if (!preview.ok || !preview.changes) {
+      await ask({ title: preview.ok ? 'Nothing to import' : 'Cannot import', body, buttons: [{ label: 'OK', value: 'ok', kind: 'suggested' }] })
+      return
+    }
+    const answer = await ask({
+      title: `Import ${preview.imported} group${preview.imported === 1 ? '' : 's'}?`,
+      body,
+      buttons: [
+        { label: 'Cancel', value: 'cancel' },
+        { label: 'Import', value: 'import', kind: 'destructive' },
+      ],
+    })
+    if (answer.value !== 'import') return
+    if (await run(() => python.call('importApply', []))) {
+      setSelectedGroup(null)
+      setActiveGroup(null)
+      setContentSelection(new Set())
+    }
+  }
+
+  const saveHistory = async () => {
+    download(sidecarName(fontName, '_history.txt'), (await python.call('history', [])).text)
+  }
+
+  const loadHistory = async (file: File) => {
+    const res = await python.call('loadHistory', [await file.text()])
+    setHistory(res)
+    if (res.notes.length) {
+      await ask({ title: 'History loaded with notes', body: res.notes.join('\n'), buttons: [{ label: 'OK', value: 'ok', kind: 'suggested' }] })
+    }
+  }
+
   // -- drag & drop ------------------------------------------------------------------
 
   const startDrag = (source: DragSource, names: string[], e: PointerEvent) => {
@@ -572,9 +641,53 @@ export function GroupsControl({ font, readOnly, run, ask, onStats }: Props) {
               history={history}
               onRecording={async (on) => setHistory(await python.call('setHistoryRecording', [on]))}
               onClear={async () => setHistory(await python.call('clearHistory', []))}
+              onSave={saveHistory}
+              onLoad={() => historyInput.current?.click()}
               onClose={() => setHistoryOpen(false)}
             />
           )}
+          <input
+            ref={historyInput}
+            type="file"
+            accept=".txt,text/plain"
+            className="hidden"
+            aria-label="Load history file"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) void loadHistory(file)
+            }}
+          />
+        </div>
+        <div className="relative">
+          <button type="button" className={toolButton} aria-expanded={ioOpen} onClick={() => setIoOpen((o) => !o)}>
+            Groups ▾
+          </button>
+          {ioOpen && (
+            <div className="absolute left-0 top-full z-30 mt-1 flex w-56 flex-col rounded-lg border border-zinc-200 bg-white py-1 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+              <button type="button" disabled={readOnly} className="px-3 py-1.5 text-left hover:bg-zinc-100 disabled:opacity-40 dark:hover:bg-zinc-800" onClick={() => { setIoOpen(false); importInput.current?.click() }}>
+                Import groups…
+              </button>
+              <div className="my-1 border-t border-zinc-200 dark:border-zinc-700" />
+              {(['all', 'kern', 'other'] as const).map((scope) => (
+                <button key={scope} type="button" className="px-3 py-1.5 text-left hover:bg-zinc-100 dark:hover:bg-zinc-800" onClick={() => void exportGroups(scope)}>
+                  Export {scope === 'all' ? 'all groups' : scope === 'kern' ? 'kerning groups' : 'other groups'}
+                </button>
+              ))}
+            </div>
+          )}
+          <input
+            ref={importInput}
+            type="file"
+            accept=".txt,text/plain"
+            className="hidden"
+            aria-label="Import groups file"
+            onChange={(e) => {
+              const file = e.target.files?.[0]
+              e.target.value = ''
+              if (file) void importGroups(file)
+            }}
+          />
         </div>
         <label className="ml-auto flex items-center gap-1" title="Preserve kerning as exception pairs when modifying groups">
           <input type="checkbox" checked={keepKerning} onChange={(e) => setKeepKerning(e.target.checked)} />
