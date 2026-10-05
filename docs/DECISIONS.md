@@ -162,10 +162,24 @@ Reported in [upstream/ufo-spacing-lib-groups-core.md](upstream/ufo-spacing-lib-g
 4. fontParts-only `.remove()` on groups/kerning (worked around by the
    adapter; a `del`-based fallback upstream would remove the need).
 
-## 8. Open for Phase 1
+## 8. Settled after the spike
 
-- Wheels in `public/wheels/` + a small loader that installs them without
-  micropip's PyPI lookups.
-- Worker RPC shape: typed request/response, deltas as in §4.
-- Service worker for caching Pyodide (old risk R2) — optional, the HTTP cache
-  already gives the ~1.6 s warm start.
+- Wheels are pinned in `public/wheels/` (`scripts/fetch_wheels.py`) and
+  installed with `loadPackage` next to Pyodide's own fonttools and attrs —
+  no micropip, no PyPI at runtime.
+- Worker RPC: typed request/response (`src/worker/protocol.ts`), one call per
+  user action, deltas as in §4 plus Lang updates, glyph records and a dirty
+  flag.
+- Service worker for caching Pyodide: not done; the HTTP cache gives the
+  ~1.6 s warm start.
+
+## 9. Later decisions
+
+- Margins, composites and metrics rules: docs/RESEARCH_MARGINS.md §5.
+- GLIF files are saved by patching their text (Decimal arithmetic), not by
+  rewriting them with glifLib: RESEARCH_MARGINS.md §3.
+- The beam is computed in TypeScript (a port of Font-Rover's
+  `outline_intersections.py`), parity-tested against the vendored Python, so
+  it can move live without a worker round trip.
+- Colours: every colour is a theme token (`src/index.css`) or the chosen
+  accent (`src/theme.ts`); canvases read them through `src/ui/palette.ts`.

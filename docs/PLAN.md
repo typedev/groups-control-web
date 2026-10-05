@@ -220,7 +220,7 @@ later decision, not a blocker.
 
 Each phase ends with a deployable build and the listed acceptance checks.
 
-### Phase 0 — Spike (~1 day)
+### Phase 0 — Spike (~1 day) — done, see DECISIONS.md
 In `spike/`, throwaway code:
 1. Pyodide worker: load `ufoLib2` + `ufo-spacing-lib` via micropip, open a
    `.ufoz` from bytes in MEMFS, run add / remove / reorder / delete / rename
@@ -234,18 +234,18 @@ In `spike/`, throwaway code:
 Output: `docs/DECISIONS.md` with measurements. Budgets to aim for: warm open
 < 10 s, edit round trip < 100 ms.
 
-### Phase 1 — Skeleton & deploy
+### Phase 1 — Skeleton & deploy — done
 Vite + TS app, worker + typed RPC, Pyodide loader with progress, drop zone
 (`.ufo` folder and `.ufoz`; keep the directory handle when Chromium gives
 one), Pages workflow live. Privacy note on the start screen.
 
-### Phase 2 — Read-only Groups Control
+### Phase 2 — Read-only Groups Control — done
 Font grid (virtualized canvas, search/sort, Hide grouped, kerning filter,
 corner marks), groups grid (Side 1/2, stacked cells, validation markers),
 content grid with margin badges, kern pairs list (Value/Exc/Lang), stats.
 Accept: a real UFO shows the same groups, markers and pairs as the desktop.
 
-### Phase 3 — Group editing + minimal saving
+### Phase 3 — Group editing + minimal saving — done
 All DnD variants, Add (+ Name Taken dialog), Delete (with confirmation),
 Rename, Keep Kerning, key glyph by reorder, refusal messages, History journal (record/clear). Parity tests: the same scenario
 run through desktop engines and the web worker yields identical
@@ -254,17 +254,17 @@ Minimal saving lands here so the tool is usable on real work: UFO folder
 write-back (Chromium), `.ufoz` download, zero-diff tests, Revert to file
 (§2.2).
 
-### Phase 4 — Preview & kerning editing
+### Phase 4 — Preview & kerning editing — done
 Dependency line (Members/All/Smart, control glyphs, colours), pairs mode
 (Expand, pairs per line), kerning keys, exceptions E/Alt+E/Ctrl+E, Backspace,
 Delete Pairs, zoom, dark mode, view options. Beam measurement may slip to
 Phase 6.
 
-### Phase 5 — Session & exchange
+### Phase 5 — Session & exchange — done
 OPFS autosave/restore, Import/Export groups (consider a Merge mode), History
 Save/Load.
 
-### Phase 6 — Margins (research first) — done, see RESEARCH_MARGINS.md; beam still open
+### Phase 6 — Margins (research first) — done, see RESEARCH_MARGINS.md (beam included)
 Write `docs/RESEARCH_MARGINS.md` before code:
 - plain outline shift + advance; optional metrics rules in
   `font.lib["com.typedev.spacing.metricsRules"]`
@@ -280,10 +280,18 @@ of Glyphs, Transfer Kerning by Script. Engines are already GTK-free in
 `font_rover/groups_control/`. Tools that need several fonts or masters (Copy
 Groups, Interpolate Kerning) wait for [LATER.md](LATER.md).
 
+Released as 0.1.0 (2026-10-05). Beyond the plan the prototype also got the
+beam, a themeable UI (light / dark, seven accents) and a contextual help
+drawer — see CHANGELOG.md.
+
 ### After the prototype
 - Undo/redo over the recorded diffs (everything: membership, reorder, delete,
-  rename, import, kerning).
+  rename, import, tools, kerning, margins).
 - `.designspace` / multi-master, then Glyphs sources — see [LATER.md](LATER.md).
+- Smaller leftovers: font-grid search by component / colour and the Custom /
+  Script sorts; import groups from another UFO and a Merge import mode; Diff
+  against the file on disk; Playwright E2E tests; a service worker for
+  Pyodide; adopt the ufo-spacing-lib fixes in docs/upstream once released.
 
 ---
 

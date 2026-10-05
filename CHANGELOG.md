@@ -5,6 +5,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.0] — 2026-10-05
+
+First release: the Groups Control prototype for one UFO.
+
 ### Added
 - Help drawer at the right (Help in the header, ? or F1): topics for the
   overview, each panel, Keep Kerning and saving, with every key of the
