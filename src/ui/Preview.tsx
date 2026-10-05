@@ -5,11 +5,12 @@ import type { FontModel, SideId } from '../model/font'
 import { resolveKernPair } from '../model/kerning'
 import { pairStops, wrapWithContext, type ChainMode, type PreviewSubject, type PreviewToken } from '../model/preview'
 import { pyRound } from '../model/pyround'
+import { sameMargin } from '../model/font'
 import { python } from '../runtime'
 import type { Run } from './GroupsControl'
 import { useDark } from './useDark'
 import { usePalette, withAlpha } from './palette'
-import { Check, Segmented, TextInput } from './controls'
+import { Check, HelpButton, Segmented, TextInput } from './controls'
 
 export type PreviewInput =
   | { kind: 'line'; subject: Omit<PreviewSubject, 'mode'>; title: string }
@@ -26,9 +27,17 @@ type Props = {
   run: Run
   readOnly: boolean
   keysRef: RefObject<PreviewKeys | null>
+  /** Beam height in font units, null when the beam is off. */
+  beamY: number | null
+  onToggleBeam: () => void
+  onMoveBeam: (y: number) => void
+  onHelp: () => void
 }
 
 const PAD = 16
+/** Room left of the text for the beam's handle and height (glyph_line/view.py). */
+const BEAM_GUTTER = 38
+const FAMILY = '"IBM Plex Sans Variable", system-ui, sans-serif'
 const KERN_ROW = 30
 /** Two label lines: right margin, then left margin. */
 const MARGIN_ROW = 26
@@ -95,7 +104,7 @@ type Layout = {
   scale: number
 }
 
-export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
+export function Preview({ font, side, input, run, readOnly, keysRef, beamY, onToggleBeam, onMoveBeam, onHelp }: Props) {
   const dark = useDark()
   const p = usePalette()
   const [mode, setMode] = useState<ChainMode>('smart')
@@ -111,6 +120,10 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
   const [hint, setHint] = useState<string | null>(null)
   /** Dependency line: the selected glyph (margin editing). */
   const [glyphSel, setGlyphSel] = useState<{ row: number; index: number; name: string } | null>(null)
+  /** Alt+B: mark the beam's crossings and the stem / counter widths between them. */
+  const [beamInner, setBeamInner] = useState(false)
+  const beamDrag = useRef<{ clientY: number; y: number; moved: boolean } | null>(null)
+  const margins = showMargins || beamY !== null
 
   const scroller = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -148,19 +161,33 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
     setHint(null)
   }, [subjectKey])
 
+  // With the beam on, the dependency line measures along it (dependencies.py
+  // dependency_glyphs with beam_y): a glyph the beam misses is never a mismatch.
+  const lineTokens = useMemo(() => {
+    if (beamY === null || input?.kind !== 'line') return tokens
+    const key = input.subject.key
+    const keyMargin = key ? font.sideMargin(key, side, beamY) : null
+    return tokens.map((t) => {
+      const g = font.sideMargin(t.n, side, beamY)
+      const x = keyMargin !== null && g !== null && !sameMargin(g, keyMargin)
+      return { ...t, g: g ?? undefined, x: x ? (true as const) : undefined }
+    })
+  }, [tokens, beamY, input, font, side])
+
   // -- layout -------------------------------------------------------------------------
   const layout = useMemo<Layout>(() => {
     const px = sizePt * 1.33
     const scale = px / font.info.unitsPerEm
+    const left = PAD + (beamY !== null ? BEAM_GUTTER : 0)
     const adv = (name: string) => (font.glyph(name)?.w ?? 0) * scale
     const rows = pairsMode
       ? pairRows
-      : wrapWithContext(tokens, adv, Math.max(50, view.w - 2 * PAD - 16))
+      : wrapWithContext(lineTokens, adv, Math.max(50, view.w - 2 * PAD - 16 - left))
     const xs: number[][] = []
     const kerns: number[][] = []
     let width = 0
     for (const row of rows) {
-      let x = PAD
+      let x = left
       const rx: number[] = []
       const rk: number[] = []
       row.forEach((t, i) => {
@@ -175,9 +202,9 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
       width = Math.max(width, x + PAD)
     }
     const lineBox = px * 1.6
-    const rowHeight = lineBox + (pairsMode ? KERN_ROW : 0) + (showMargins ? MARGIN_ROW : 0) + (showNames ? 14 : 0)
+    const rowHeight = lineBox + (pairsMode ? KERN_ROW : 0) + (margins ? MARGIN_ROW : 0) + (showNames ? 14 : 0)
     return { rows, xs, kerns, rowHeight, ascent: lineBox * 0.7, width, height: rows.length * rowHeight + PAD, scale }
-  }, [font, tokens, pairRows, pairsMode, sizePt, view.w, showMargins, showNames])
+  }, [font, lineTokens, pairRows, pairsMode, sizePt, view.w, margins, showNames, beamY])
 
   const stops = useMemo(() => (pairsMode ? pairStops(layout.rows) : []), [layout.rows, pairsMode])
 
@@ -232,7 +259,7 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
     const { rows, xs, kerns, rowHeight, ascent, scale } = layout
     const firstRow = Math.max(0, Math.floor((view.top - PAD) / rowHeight))
     const lastRow = Math.min(rows.length - 1, Math.ceil((view.top + view.h) / rowHeight))
-    ctx.font = '11px system-ui, sans-serif'
+    ctx.font = `11px ${FAMILY}`
     for (let r = firstRow; r <= lastRow; r++) {
       const row = rows[r]
       const top = PAD / 2 + r * rowHeight
@@ -267,14 +294,71 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
         ctx.restore()
       })
 
+      if (beamY !== null) {
+        const lineY = baseline - beamY * scale
+        if (beamInner) {
+          // Crossings and the spans between them, labels alternating above / below.
+          ctx.fillStyle = p.beam
+          ctx.font = `9px ${FAMILY}`
+          ctx.textAlign = 'center'
+          row.forEach((t, i) => {
+            if (t.ctx) return
+            const xsBeam = font.beamCrossings(t.n, beamY)
+            const gx = xs[r][i]
+            for (const cx of xsBeam) {
+              ctx.beginPath()
+              ctx.arc(gx + cx * scale, lineY, 2.5, 0, Math.PI * 2)
+              ctx.fill()
+            }
+            for (let k = 0; k + 1 < xsBeam.length; k++) {
+              const len = xsBeam[k + 1] - xsBeam[k]
+              const text = Number.isInteger(Math.round(len * 10) / 10) ? String(Math.round(len)) : (Math.round(len * 10) / 10).toString()
+              ctx.textBaseline = k % 2 === 0 ? 'bottom' : 'top'
+              ctx.fillText(text, gx + ((xsBeam[k] + xsBeam[k + 1]) / 2) * scale, k % 2 === 0 ? lineY - 3 : lineY + 3)
+            }
+          })
+        }
+        // A dashed line across the row, a drag handle and the height at the left.
+        ctx.save()
+        ctx.strokeStyle = p.beam
+        ctx.lineWidth = 1
+        ctx.setLineDash([3, 3])
+        ctx.beginPath()
+        ctx.moveTo(0, Math.round(lineY) + 0.5)
+        ctx.lineTo(Math.max(layout.width, view.w + view.left), Math.round(lineY) + 0.5)
+        ctx.stroke()
+        ctx.setLineDash([])
+        const hx = 2 + view.left
+        const hy = lineY - 9
+        ctx.fillStyle = p.beam
+        ctx.beginPath()
+        ctx.roundRect(hx, hy, 12, 18, 3)
+        ctx.fill()
+        ctx.fillStyle = p.surface
+        for (const [tip, base] of [[hy + 3, hy + 7], [hy + 15, hy + 11]]) {
+          ctx.beginPath()
+          ctx.moveTo(hx + 6, tip)
+          ctx.lineTo(hx + 9.5, base)
+          ctx.lineTo(hx + 2.5, base)
+          ctx.closePath()
+          ctx.fill()
+        }
+        ctx.fillStyle = p.beam
+        ctx.font = `9px ${FAMILY}`
+        ctx.textAlign = 'left'
+        ctx.textBaseline = 'alphabetic'
+        ctx.fillText(String(beamY), hx + 15, lineY - 3)
+        ctx.restore()
+      }
+
       let y = top + ascent / 0.7 + 11
-      if (showMargins) {
+      if (margins) {
         // glyph_line/view.py _draw_margins: right margin "72 ▶" at the right
         // edge, left margin "◀ 33" one line lower at the left edge (9 px).
         const size = 9
         const tri = 3
         const gap = 2
-        ctx.font = `${size}px system-ui, sans-serif`
+        ctx.font = `${size}px ${FAMILY}`
         ctx.textBaseline = 'alphabetic'
         const triangle = (x: number, cy: number, right: boolean) => {
           ctx.beginPath()
@@ -292,27 +376,30 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
           const x = xs[r][i]
           const right = x + g.w * scale
           const both = pairsMode || selected
-          ctx.fillStyle = !pairsMode && t.x ? p.error : p.label
+          // Along the beam when it is on, in its colour; "–" where it misses.
+          const onBeam = beamY !== null
+          const beamM = onBeam && both ? font.beamMargins(t.n, beamY) : null
+          const leftM = both ? (onBeam ? beamM?.[0] ?? null : g.l) : t.g ?? null
+          const rightM = both ? (onBeam ? beamM?.[1] ?? null : g.r) : t.g ?? null
+          ctx.fillStyle = !pairsMode && t.x ? p.error : onBeam ? p.beam : p.label
+          const text = (m: number | null) => (m === null ? '–' : String(pyRound(m)))
           if (both || side === 'kern1') {
-            const m = both ? g.r : t.g ?? null
-            if (m !== null) {
-              const text = String(pyRound(m))
+            if (rightM !== null || onBeam) {
               triangle(right - tri, y - size / 3, true)
               ctx.textAlign = 'right'
-              ctx.fillText(text, right - tri * 1.5 - gap, y)
+              ctx.fillText(text(rightM), right - tri * 1.5 - gap, y)
             }
           }
           if (both || side === 'kern2') {
-            const m = both ? g.l : t.g ?? null
-            if (m !== null) {
+            if (leftM !== null || onBeam) {
               const ly = y + size + 3
               triangle(x + tri, ly - size / 3, false)
               ctx.textAlign = 'left'
-              ctx.fillText(String(pyRound(m)), x + tri * 1.5 + gap, ly)
+              ctx.fillText(text(leftM), x + tri * 1.5 + gap, ly)
             }
           }
         })
-        ctx.font = '11px system-ui, sans-serif'
+        ctx.font = `11px ${FAMILY}`
         y += MARGIN_ROW
       }
       if (showNames) {
@@ -351,11 +438,11 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
           if (type) drawMarker(ctx, type, cx - total / 2, ty - 9 * 0.45, 10)
           ctx.textAlign = 'left'
           ctx.fillText(text, cx - total / 2 + mw + (mw ? 3 : 0), ty)
-          ctx.font = '11px system-ui, sans-serif'
+          ctx.font = `11px ${FAMILY}`
         })
       }
     }
-  }, [view, layout, p, font, pairsMode, selection, glyphSel, showMargins, showNames, side, dark])
+  }, [view, layout, p, font, pairsMode, selection, glyphSel, margins, showNames, side, dark, beamY, beamInner])
 
   useEffect(() => {
     const id = requestAnimationFrame(paint)
@@ -378,6 +465,17 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
   }
 
   const keys: PreviewKeys = (e) => {
+    // Beam (glyph_line keymap): B toggles, Alt+B marks stems, Alt+Up/Down move ±1 (Shift ±100).
+    if (e.code === 'KeyB' && !e.ctrlKey && !e.metaKey) {
+      if (e.altKey) setBeamInner((v) => !v)
+      else onToggleBeam()
+      return true
+    }
+    if (e.altKey && (e.code === 'ArrowUp' || e.code === 'ArrowDown') && beamY !== null) {
+      const step = e.shiftKey ? 100 : 1
+      onMoveBeam(beamY + (e.code === 'ArrowUp' ? step : -step))
+      return true
+    }
     if (!pairsMode) {
       // glyph_line/keys.py MARGIN_ACTIONS: arrows = right margin, Alt = left, Shift ×10.
       if (e.code === 'Escape') return setGlyphSel(null), true
@@ -466,18 +564,25 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
       const g = font.glyph(glyphSel.name)
       return `${glyphSel.name} · L ${g?.l === null || !g ? '–' : pyRound(g.l)} R ${g?.r === null || !g ? '–' : pyRound(g.r)} W ${g ? pyRound(g.w) : '–'} · arrows: right margin, Alt: left margin, Shift: ×10 · Esc: deselect`
     }
-    const extra = tokens.filter((t) => !t.m).length
-    const differ = tokens.filter((t) => t.x).length
-    const angled = font.info.italicAngle ? ' (angled)' : ''
+    const extra = lineTokens.filter((t) => !t.m).length
+    const differ = lineTokens.filter((t) => t.x).length
+    const angled =
+      (font.info.italicAngle ? ' (angled' : '') +
+      (beamY !== null ? `${font.info.italicAngle ? ', ' : ' ('}along the beam at ${beamY})` : font.info.italicAngle ? ')' : '')
     return (
-      `${input.title} · ${tokens.length - extra} glyph${tokens.length - extra === 1 ? '' : 's'}` +
+      `${input.title} · ${lineTokens.length - extra} glyph${lineTokens.length - extra === 1 ? '' : 's'}` +
       (extra ? ` (+${extra} composites/parents)` : '') +
       ` · checking the ${side === 'kern1' ? 'right' : 'left'} side${angled}` +
       (differ ? ` · ${differ} differ${differ === 1 ? 's' : ''} from the key glyph` : '')
     )
-  }, [input, tokens, stops, isExpanded, side, font, glyphSel])
+  }, [input, lineTokens, stops, isExpanded, side, font, glyphSel, beamY])
 
   const onClick = (e: React.MouseEvent) => {
+    if (beamDrag.current?.moved) {
+      beamDrag.current = null
+      return
+    }
+    beamDrag.current = null
     const el = scroller.current!
     const box = el.getBoundingClientRect()
     const x = e.clientX - box.left + el.scrollLeft
@@ -552,11 +657,30 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
             onChange={(e) => setSizePt(Math.max(12, Math.min(300, Number(e.target.value) || 40)))}
           />
         </label>
-        <Check label="Margins" checked={showMargins} onChange={(e) => setShowMargins(e.target.checked)} />
+        <Check label="Margins" checked={margins} disabled={beamY !== null} onChange={(e) => setShowMargins(e.target.checked)} />
+        <Check
+          label="Beam"
+          title="Measure margins along a horizontal line (B; Alt+↑/↓ moves it, Shift ×100; drag the handle)"
+          checked={beamY !== null}
+          onChange={onToggleBeam}
+        />
+        {beamY !== null && (
+          <>
+            <TextInput
+              type="number"
+              aria-label="Beam height"
+              className="w-20"
+              value={beamY}
+              onChange={(e) => e.target.value !== '' && onMoveBeam(Number(e.target.value))}
+            />
+            <Check label="Stems" title="Mark the crossings and the stem / counter widths (Alt+B)" checked={beamInner} onChange={(e) => setBeamInner(e.target.checked)} />
+          </>
+        )}
         <Check label="Names" checked={showNames} onChange={(e) => setShowNames(e.target.checked)} />
         <span className="min-w-0 flex-1 truncate text-right text-xs text-muted" title={hint ?? info}>
           {hint ? <span className="font-medium text-careful">{hint}</span> : info}
         </span>
+        <HelpButton label="Help: Preview, keys" onClick={onHelp} />
       </div>
       <div className="relative min-h-0 flex-1">
       <canvas ref={canvas} className="pointer-events-none absolute left-0 top-0 block" style={{ width: view.w, height: view.h }} />
@@ -570,6 +694,29 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
           setView((v) => ({ ...v, left: el.scrollLeft, top: el.scrollTop }))
         }}
         onClick={onClick}
+        onPointerDown={(e) => {
+          if (beamY === null || e.button !== 0) return
+          const el = scroller.current!
+          const box = el.getBoundingClientRect()
+          const x = e.clientX - box.left + el.scrollLeft
+          const y = e.clientY - box.top + el.scrollTop
+          const r = Math.max(0, Math.floor((y - PAD / 2) / layout.rowHeight))
+          const lineY = PAD / 2 + r * layout.rowHeight + layout.ascent - beamY * layout.scale
+          const onHandle = x - el.scrollLeft < 2 + 12 + 4 && Math.abs(y - lineY) <= 12
+          if (!onHandle && Math.abs(y - lineY) > 4) return
+          e.currentTarget.setPointerCapture(e.pointerId)
+          beamDrag.current = { clientY: e.clientY, y: beamY, moved: false }
+        }}
+        onPointerMove={(e) => {
+          const drag = beamDrag.current
+          if (!drag || !e.currentTarget.hasPointerCapture(e.pointerId)) return
+          const dy = drag.clientY - e.clientY
+          if (Math.abs(dy) > 1) drag.moved = true
+          if (drag.moved) onMoveBeam(drag.y + dy / layout.scale)
+        }}
+        onPointerUp={(e) => {
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) e.currentTarget.releasePointerCapture(e.pointerId)
+        }}
         onKeyDown={(e) => {
           if (keysWithException(e)) e.preventDefault()
         }}

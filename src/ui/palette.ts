@@ -22,6 +22,7 @@ export type Palette = {
   errorSoft: string
   errorGlyph: string
   drop: string
+  beam: string
 }
 
 const VARS: Record<keyof Palette, string> = {
@@ -43,6 +44,7 @@ const VARS: Record<keyof Palette, string> = {
   errorSoft: '--c-error-soft',
   errorGlyph: '--c-error-glyph',
   drop: '--c-drop',
+  beam: '--c-beam',
 }
 
 export function readPalette(): Palette {

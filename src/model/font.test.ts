@@ -167,3 +167,32 @@ describe('withDelta', () => {
     expect(font.glyph('O')?.l).toBe(40)
   })
 })
+
+describe('beam margins in validation', () => {
+  // A square from x 100..300 at y 0..500 and a triangle whose sides lean in.
+  const sq: GlyphRecord = { u: [], w: 400, l: 100, r: 100, p: [['M', 100, 0], ['L', 300, 0], ['L', 300, 500], ['L', 100, 500], ['Z']] }
+  const tri: GlyphRecord = { u: [], w: 400, l: 100, r: 100, p: [['M', 100, 0], ['L', 300, 0], ['L', 200, 500], ['Z']] }
+  const dot: GlyphRecord = { u: [], w: 400, l: 150, r: 150, p: [['M', 150, 600], ['L', 250, 600], ['L', 250, 700], ['L', 150, 700], ['Z']] }
+  const beamData: FontData = {
+    ...data,
+    order: ['sq', 'tri', 'dot'],
+    glyphs: { sq, tri, dot },
+    groups: { 'public.kern1.sq': ['sq', 'tri', 'dot'] },
+    kerning: [],
+    lang: [],
+  }
+  const font = new FontModel(beamData)
+
+  it('measures margins where the beam crosses', () => {
+    expect(font.beamMargins('tri', 250)).toEqual([150, 150])
+    expect(font.beamMargins('dot', 250)).toBeNull()
+    expect(font.sideMargin('tri', 'kern1', 250)).toBe(150)
+  })
+
+  it('flags mismatches along the beam and skips glyphs it misses', () => {
+    expect(font.validate('public.kern1.sq', 'kern1').marginMismatch).toBe(true) // dot: 150 vs 100
+    const atBase = font.validate('public.kern1.sq', 'kern1', 0)
+    expect(atBase.marginMismatch).toBe(false) // tri at y=0 is as wide as the square; dot missed
+    expect(font.validate('public.kern1.sq', 'kern1', 250).marginMismatch).toBe(true) // tri 150
+  })
+})

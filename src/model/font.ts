@@ -1,6 +1,7 @@
 // Read model of the open font: what the UI draws, derived once from the
 // worker's payload. Desktop behaviour references are Font-Rover paths.
 import { GroupIndex, isKerningGroup, KerningTable, KERN1, KERN2, pairKey, resolveKernPair } from './kerning'
+import { crossings, marginsFromCrossings, outlineSegments, slantFactor, type Segment } from './beam'
 import { OutlineCache } from './outlines'
 import { pyRound } from './pyround'
 import type { Delta, FontData, GlyphRecord, KerningEntry, LangEntry, LangStatus } from './types'
@@ -38,6 +39,7 @@ export class FontModel {
   private byRight = new Map<string, number[]>()
   private sideCache = new Map<SideId, SideData>()
   private validation = new Map<string, GroupValidation>()
+  private segments = new Map<string, Segment[]>()
 
   constructor(readonly data: FontData, outlines?: OutlineCache) {
     this.index = new GroupIndex(data.groups)
@@ -91,10 +93,34 @@ export class FontModel {
     return this.data.glyphs[name]
   }
 
-  /** Right margin for side 1 (kern1), left margin for side 2. */
-  sideMargin(name: string, side: SideId): number | null {
+  /** Crossings of the glyph's outline with the beam at height y. */
+  beamCrossings(name: string, y: number): number[] {
+    let segs = this.segments.get(name)
+    if (!segs) {
+      segs = outlineSegments(this.data.glyphs, name)
+      this.segments.set(name, segs)
+    }
+    return crossings(segs, y)
+  }
+
+  /** (left, right) measured along the beam; null where it misses the glyph. */
+  beamMargins(name: string, y: number): [number, number] | null {
     const g = this.data.glyphs[name]
     if (!g) return null
+    return marginsFromCrossings(this.beamCrossings(name, y), y, g.w, slantFactor(this.info.italicAngle))
+  }
+
+  /**
+   * Right margin for side 1 (kern1), left margin for side 2 — along the beam
+   * when it is on (utils/margin_edit.py side_margin).
+   */
+  sideMargin(name: string, side: SideId, beamY: number | null = null): number | null {
+    const g = this.data.glyphs[name]
+    if (!g) return null
+    if (beamY !== null) {
+      const m = this.beamMargins(name, beamY)
+      return m === null ? null : side === 'kern1' ? m[1] : m[0]
+    }
     return side === 'kern1' ? g.r : g.l
   }
 
@@ -107,28 +133,31 @@ export class FontModel {
     return data
   }
 
-  /** groups_grid/_model.py GroupValidation (beam off). */
-  validate(group: string, side: SideId): GroupValidation {
-    const hit = this.validation.get(group)
+  /** groups_grid/_model.py GroupValidation; with the beam on a member it misses is skipped. */
+  validate(group: string, side: SideId, beamY: number | null = null): GroupValidation {
+    const cacheKey = beamY === null ? group : `${group}\u0000${beamY}`
+    const hit = this.validation.get(cacheKey)
     if (hit) return hit
     const names = this.data.groups[group] ?? []
     const result: GroupValidation = { empty: names.length === 0, missing: [], marginMismatch: false, keyMargin: null }
     if (!result.empty) {
       const key = names[0]
       if (!this.glyphSet.has(key)) result.missing.push(key)
-      else result.keyMargin = this.sideMargin(key, side)
+      else result.keyMargin = this.sideMargin(key, side, beamY)
       const keyPresent = this.glyphSet.has(key)
       for (const name of names.slice(1)) {
         if (!this.glyphSet.has(name)) {
           result.missing.push(name)
           continue
         }
-        if (keyPresent && result.keyMargin !== null && !sameMargin(this.sideMargin(name, side), result.keyMargin)) {
-          result.marginMismatch = true
-        }
+        if (!keyPresent || result.keyMargin === null) continue
+        const m = this.sideMargin(name, side, beamY)
+        if (m === null && beamY !== null) continue
+        if (!sameMargin(m, result.keyMargin)) result.marginMismatch = true
       }
     }
-    this.validation.set(group, result)
+    if (this.validation.size > 5000) this.validation.clear()
+    this.validation.set(cacheKey, result)
     return result
   }
 

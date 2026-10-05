@@ -8,6 +8,8 @@ import { WorkerError } from './worker/client'
 import type { FontSummary, OpResult } from './worker/protocol'
 import { useDialogs } from './ui/Dialog'
 import { AppearanceMenu, Button } from './ui/controls'
+import { HelpDrawer } from './ui/HelpDrawer'
+import { setHelpContext, toggleHelp, useHelp } from './help'
 import { GroupsControl } from './ui/GroupsControl'
 import { StartScreen } from './ui/StartScreen'
 
@@ -22,6 +24,7 @@ export type OpenFont = {
 
 export function App() {
   const runtime = useRuntime()
+  const help = useHelp()
   const [font, setFont] = useState<OpenFont | null>(null)
   const [opening, setOpening] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -29,6 +32,10 @@ export function App() {
   const [status, setStatus] = useState<string | null>(null)
   const [stored, setStored] = useState<StoredSession | null>(null)
   const { ask, element: dialog } = useDialogs()
+
+  useEffect(() => {
+    if (!font) setHelpContext('overview')
+  }, [font])
 
   // A session with unsaved edits from an earlier visit can be restored.
   useEffect(() => {
@@ -179,6 +186,14 @@ export function App() {
       if ((e.metaKey || e.ctrlKey) && e.code === 'KeyS') {
         e.preventDefault()
         void save()
+        return
+      }
+      // ? or F1 toggles the help, unless typing in a field.
+      const t = e.target as HTMLElement | null
+      const typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)
+      if (e.key === 'F1' || (e.key === '?' && !typing && !e.metaKey && !e.ctrlKey)) {
+        e.preventDefault()
+        toggleHelp()
       }
     }
     const onUnload = (e: BeforeUnloadEvent) => {
@@ -240,18 +255,25 @@ export function App() {
             <Button variant="ghost" onClick={close}>
               Close
             </Button>
+            <Button variant="ghost" aria-pressed={help.open} title="Help (?)" onClick={toggleHelp} className={help.open ? 'bg-accent-soft text-accent' : ''}>
+              Help
+            </Button>
             <AppearanceMenu />
           </>
         ) : (
           <>
             <span className="text-[13px] text-muted">Kerning groups and kerning for UFO fonts</span>
-            <span className="ml-auto">
+            <span className="ml-auto flex items-center gap-1">
+              <Button variant="ghost" aria-pressed={help.open} title="Help (?)" onClick={toggleHelp} className={help.open ? 'bg-accent-soft text-accent' : ''}>
+                Help
+              </Button>
               <AppearanceMenu />
             </span>
           </>
         )}
       </header>
-      <main className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         {font ? (
           <GroupsControl font={font.model} fontName={font.name} readOnly={readOnly} run={run} ask={ask} onStats={setStats} />
         ) : (
@@ -266,6 +288,8 @@ export function App() {
           />
         )}
       </main>
+      {help.open && <HelpDrawer />}
+      </div>
       {dialog}
     </div>
   )

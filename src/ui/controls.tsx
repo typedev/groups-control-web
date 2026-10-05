@@ -156,101 +156,48 @@ export const MenuSeparator = () => <div className="mx-1 my-1 border-t border-lin
 
 // -- Keep Kerning: the one control that must never be missed -------------------------
 
-function KeepKerningHelp({ onClose }: { onClose: () => void }) {
+export function KeepKerningSwitch({ on, onChange, onHelp }: { on: boolean; onChange: (on: boolean) => void; onHelp: () => void }) {
   return (
-    <div
-      role="dialog"
-      aria-label="About Keep Kerning"
-      className="absolute left-0 top-full z-40 mt-1.5 w-[26rem] rounded-xl border border-line bg-surface p-4 text-[13px] leading-relaxed shadow-xl"
-    >
-      <div className="flex items-start justify-between gap-3">
-        <h3 className="font-semibold">Keep Kerning</h3>
-        <button type="button" aria-label="Close" className="-mr-1 -mt-1 rounded-md px-1.5 text-muted hover:bg-raised hover:text-ink" onClick={onClose}>
-          ✕
-        </button>
-      </div>
-      <p className="mt-1 text-muted">
-        Decides what happens to kerning when glyphs change groups. It does not affect reordering, renaming (kerning
-        always follows the new name) or editing kerning values.
-      </p>
-      <h4 className="mt-3 font-semibold text-accent">On — text keeps the same spacing</h4>
-      <ul className="mt-1 list-disc space-y-0.5 pl-5">
-        <li>
-          <b>Adding</b> a glyph to a group: its own pairs that equal the group's are dropped, different ones stay as
-          exceptions. A new group takes over the first glyph's pairs.
-        </li>
-        <li>
-          <b>Removing</b> a glyph from a group: it gets the group's pairs as exceptions, so its kerning does not change.
-        </li>
-        <li>
-          <b>Deleting</b> a group: its pairs become exceptions of every member.
-        </li>
-      </ul>
-      <h4 className="mt-3 font-semibold text-careful">Off — groups change, kerning is left as it is</h4>
-      <ul className="mt-1 list-disc space-y-0.5 pl-5">
-        <li>An added glyph keeps all its own pairs; they override the group's.</li>
-        <li>A removed glyph loses the group's kerning.</li>
-        <li>A deleted group's pairs are removed.</li>
-      </ul>
-      <p className="mt-3 text-xs text-muted">Leave it on unless you are rebuilding kerning from scratch.</p>
+    <div className="inline-flex items-center gap-1">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        title={
+          on
+            ? 'On: glyphs that change groups keep their spacing (exceptions are made where needed). Click to turn off.'
+            : 'Off: glyphs that change groups lose or keep pairs as they are. Click to turn on.'
+        }
+        onClick={() => onChange(!on)}
+        className={`group inline-flex h-8 items-center gap-2 rounded-lg border pl-1.5 pr-3 text-[13px] font-semibold transition-colors ${
+          on ? 'border-accent/40 bg-accent-soft text-accent' : 'border-careful/50 bg-careful-soft text-careful'
+        }`}
+      >
+        <span className={`relative inline-block h-5 w-9 rounded-full transition-colors ${on ? 'bg-accent' : 'bg-careful/70'}`} aria-hidden>
+          <span
+            className={`absolute left-0.5 top-0.5 size-4 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-4' : 'translate-x-0'}`}
+          />
+        </span>
+        Keep Kerning
+        <span className="font-normal opacity-80">{on ? 'on' : 'off — kerning is dropped'}</span>
+      </button>
+      <HelpButton onClick={onHelp} label="About Keep Kerning" />
     </div>
   )
 }
 
-export function KeepKerningSwitch({ on, onChange }: { on: boolean; onChange: (on: boolean) => void }) {
-  const [help, setHelp] = useState(false)
-  const root = useRef<HTMLDivElement>(null)
-  useEffect(() => {
-    if (!help) return
-    const onDown = (e: MouseEvent) => !root.current?.contains(e.target as Node) && setHelp(false)
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && setHelp(false)
-    window.addEventListener('mousedown', onDown)
-    window.addEventListener('keydown', onKey)
-    return () => {
-      window.removeEventListener('mousedown', onDown)
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [help])
+/** A small "?" that opens the help drawer on one topic. */
+export function HelpButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
-    <div ref={root} className="relative inline-flex items-center gap-1">
     <button
       type="button"
-      role="switch"
-      aria-checked={on}
-      title={
-        on
-          ? 'On: glyphs that change groups keep their spacing (exceptions are made where needed). Click to turn off.'
-          : 'Off: glyphs that change groups lose or keep pairs as they are. Click to turn on.'
-      }
-      onClick={() => onChange(!on)}
-      className={`group inline-flex h-8 items-center gap-2 rounded-lg border pl-1.5 pr-3 text-[13px] font-semibold transition-colors ${
-        on
-          ? 'border-accent/40 bg-accent-soft text-accent'
-          : 'border-careful/50 bg-careful-soft text-careful'
-      }`}
+      aria-label={label}
+      title={label}
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full border border-line text-xs font-semibold text-muted hover:border-line-strong hover:text-ink"
+      onClick={onClick}
     >
-      <span
-        className={`relative inline-block h-5 w-9 rounded-full transition-colors ${on ? 'bg-accent' : 'bg-careful/70'}`}
-        aria-hidden
-      >
-        <span
-          className={`absolute left-0.5 top-0.5 size-4 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-4' : 'translate-x-0'}`}
-        />
-      </span>
-      Keep Kerning
-      <span className="font-normal opacity-80">{on ? 'on' : 'off — kerning is dropped'}</span>
+      ?
     </button>
-      <button
-        type="button"
-        aria-label="About Keep Kerning"
-        aria-expanded={help}
-        className="inline-flex size-6 items-center justify-center rounded-full border border-line text-xs font-semibold text-muted hover:border-line-strong hover:text-ink"
-        onClick={() => setHelp((h) => !h)}
-      >
-        ?
-      </button>
-      {help && <KeepKerningHelp onClose={() => setHelp(false)} />}
-    </div>
   )
 }
 

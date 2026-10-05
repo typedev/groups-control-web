@@ -33,6 +33,7 @@
   --c-error-glyph: #8f1d2c;
   --c-drop: #2da44e;
   --c-danger: #cf222e;
+  --c-beam: #b84d00;
 
   /* Glyph and group cells, preview. */
   --c-cell: #ffffff;          /* glyph cells: white on grey panels */
@@ -69,6 +70,7 @@
   --c-error-glyph: #f0605a;
   --c-drop: #3fb950;
   --c-danger: #da3633;
+  --c-beam: #f28c1a;
 
   --c-cell: #252830;
   --c-group-cell: #1f2228;
@@ -102,6 +104,7 @@
   --color-error-soft: var(--c-error-soft);
   --color-danger: var(--c-danger);
   --color-drop: var(--c-drop);
+  --color-beam: var(--c-beam);
 }
 
 html {

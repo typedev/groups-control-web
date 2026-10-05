@@ -47,6 +47,10 @@ FILES = [
         ),
     ]),
 ]
+# The beam (Phase 6 follow-up): only the parity test uses these in Python.
+FILES.append(("font_rover/utils/outline_intersections.py", "outline_intersections.py", []))
+FILES.append(("font_rover/utils/beam.py", "beam.py", []))
+
 # Engines of the Tools menu (Phase 7). All GTK-free; imports fixed by COMMON.
 for _engine in (
     "clean_kerning", "key_glyphs", "flatten_kerning", "merge_script_groups",

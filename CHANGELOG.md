@@ -6,6 +6,20 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Help drawer at the right (Help in the header, ? or F1): topics for the
+  overview, each panel, Keep Kerning and saving, with every key of the
+  preview (dependency line, pairs, beam). It follows the panel in use; a tab
+  keeps one topic until Auto. The workspace narrows instead of being covered.
+  Every panel has a "?" that opens its topic; the Keep Kerning popover moved
+  here.
+- The beam (Font-Rover utils/beam.py): margins measured where a horizontal
+  line crosses the outline. B toggles it, Alt+Up/Down moves it by 1 (Shift
+  100), drag its handle or type the height; Alt+B (Stems) marks the
+  crossings and the stem / counter widths. With the beam on, the preview
+  shows margins along it ("–" where it misses), and the dependency line,
+  group validation and member badges check margins along it; a glyph the
+  beam misses is never a mismatch. TS port of the crossing maths, parity
+  tested against the vendored Python on every MutatorSans glyph.
 - Appearance menu in the header: theme (system, light, dark) and one of seven
   accent colours (sky, blue, teal, violet, plum, rose, graphite), each tuned for both
   themes; kept per browser; canvases follow it too.

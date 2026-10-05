@@ -188,15 +188,15 @@ export function drawContentCell(
 }
 
 /** W:1650-1703 _compute_margin_labels — badges for one group's members. */
-export function memberBadges(font: FontModel, group: string, side: SideId): (ContentCellState['badge'])[] {
+export function memberBadges(font: FontModel, group: string, side: SideId, beamY: number | null = null): (ContentCellState['badge'])[] {
   const members = font.data.groups[group] ?? []
   const key = members[0]
-  const keyMargin = key !== undefined && font.glyphSet.has(key) ? font.sideMargin(key, side) : null
+  const keyMargin = key !== undefined && font.glyphSet.has(key) ? font.sideMargin(key, side, beamY) : null
   return members.map((name, i) => {
     if (keyMargin === null) return null
     if (i === 0) return { text: String(pyRound(keyMargin)), error: false }
     if (!font.glyphSet.has(name)) return null
-    const m = font.sideMargin(name, side)
+    const m = font.sideMargin(name, side, beamY)
     if (m === null || pyRound(m) === pyRound(keyMargin)) return null
     return { text: `!${pyRound(m)}`, error: true }
   })

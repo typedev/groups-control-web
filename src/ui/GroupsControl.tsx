@@ -17,7 +17,8 @@ import { freeName, nameProblem } from '../model/naming'
 import { buildPairRows } from '../model/pairs'
 import type { GroupScope, HistoryState, OpResult, Refused, ToolSpec } from '../worker/protocol'
 import { ToolDialog } from './ToolDialog'
-import { Button, Check, KeepKerningSwitch, Menu, MenuItem, MenuSeparator, Segmented, Select, TextInput } from './controls'
+import { Button, Check, HelpButton, KeepKerningSwitch, Menu, MenuItem, MenuSeparator, Segmented, Select, TextInput } from './controls'
+import { setHelpContext, showHelp, type HelpTopic } from '../help'
 import { download, sidecarName } from '../save'
 import { python } from '../runtime'
 import { CanvasGrid, type CellRect, type GridHandle } from './canvas/CanvasGrid'
@@ -67,9 +68,23 @@ function nextSelection(current: Set<string>, list: string[], index: number, anch
   return new Set([name])
 }
 
-function Column({ active, drop, children, className = '' }: { active: boolean; drop?: boolean; children: ReactNode; className?: string }) {
+function Column({
+  active,
+  drop,
+  topic,
+  children,
+  className = '',
+}: {
+  active: boolean
+  drop?: boolean
+  /** Help topic shown while this panel is in use. */
+  topic: HelpTopic
+  children: ReactNode
+  className?: string
+}) {
   return (
     <section
+      onPointerDownCapture={() => setHelpContext(topic)}
       className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-surface transition-[border-color,box-shadow] ${
         drop
           ? 'border-drop shadow-[0_0_0_1px_var(--c-drop)]'
@@ -146,6 +161,41 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
   const [widths, setWidths] = useState([1 / 3, 1 / 3, 1 / 3])
   const [groupsFraction, setGroupsFraction] = useState(0.55)
   const [previewFraction, setPreviewFraction] = useState(0.3)
+
+  // The beam (Font-Rover utils/beam.py): margins measured at one height.
+  // Remembered per browser; the grids re-check once a drag settles.
+  const [beam, setBeamState] = useState<{ on: boolean; y: number | null }>(() => {
+    try {
+      const v = JSON.parse(localStorage.getItem('gc.beam') ?? 'null')
+      if (v && typeof v.on === 'boolean') return { on: v.on, y: typeof v.y === 'number' ? v.y : null }
+    } catch {
+      // ignore
+    }
+    return { on: false, y: null }
+  })
+  const setBeam = useCallback((next: { on: boolean; y: number | null }) => {
+    setBeamState(next)
+    try {
+      localStorage.setItem('gc.beam', JSON.stringify(next))
+    } catch {
+      // private mode
+    }
+  }, [])
+  const beamY = beam.on ? beam.y : null
+  const [gridBeamY, setGridBeamY] = useState(beamY)
+  useEffect(() => {
+    const id = setTimeout(() => setGridBeamY(beamY), 60)
+    return () => clearTimeout(id)
+  }, [beamY])
+  const toggleBeam = useCallback(() => {
+    if (beam.on) setBeam({ on: false, y: beam.y })
+    else {
+      const info = fontRef.current.info
+      const y = beam.y ?? (info.xHeight ? Math.round(info.xHeight / 2) : Math.round(info.unitsPerEm * 0.25))
+      setBeam({ on: true, y })
+    }
+  }, [beam, setBeam])
+  const moveBeam = useCallback((y: number) => setBeam({ on: true, y: Math.round(y) }), [setBeam])
   const previewKeys = useRef<PreviewKeys | null>(null)
   const [history, setHistory] = useState<HistoryState | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -205,7 +255,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
   }, [font, sortMode, searchMode, searchText, sideData, kernFilter, hideGrouped])
 
   const members = useMemo(() => (activeGroup ? font.data.groups[activeGroup] ?? [] : []), [font, activeGroup])
-  const badges = useMemo(() => (activeGroup ? memberBadges(font, activeGroup, side) : []), [font, activeGroup, side])
+  const badges = useMemo(() => (activeGroup ? memberBadges(font, activeGroup, side, gridBeamY) : []), [font, activeGroup, side, gridBeamY])
 
   const pairRows = useMemo(() => {
     const first = [...fontSelection][0]
@@ -550,13 +600,13 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
   const drawGroup = useCallback(
     (ctx: CanvasRenderingContext2D, i: number, r: CellRect) => {
       const group = sideData.groups[i]
-      drawGroupCell(ctx, font, group, r, side, font.validate(group, side), {
+      drawGroupCell(ctx, font, group, r, side, font.validate(group, side, gridBeamY), {
         selected: group === selectedGroup && source === 'groups',
         active: group === activeGroup,
         dropHover: i === groupHover,
       }, theme)
     },
-    [font, sideData, side, selectedGroup, activeGroup, source, groupHover, theme],
+    [font, sideData, side, selectedGroup, activeGroup, source, groupHover, theme, gridBeamY],
   )
 
   const drawContent = useCallback(
@@ -631,7 +681,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 pb-1 pt-2.5">
-        <KeepKerningSwitch on={keepKerning} onChange={setKeepKerning} />
+        <KeepKerningSwitch on={keepKerning} onChange={setKeepKerning} onHelp={() => showHelp('keepKerning')} />
         <Divider />
         <Button disabled={readOnly || !fontSelection.size} onClick={createGroup} title="Create a group from the selected glyphs">
           <span aria-hidden className="text-base leading-none">+</span> Add group
@@ -714,7 +764,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
       <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 px-3 py-1.5" style={{ flex: 1 - previewFraction }}>
         <div className="flex min-h-0 min-w-0 flex-col" style={{ width: `${widths[0] * 100}%` }}>
-          <Column active={source === 'font'} drop={dropTarget?.kind === 'font'} className="flex-1">
+          <Column active={source === 'font'} drop={dropTarget?.kind === 'font'} topic="font" className="flex-1">
             <Toolbar>
               <div className="flex min-w-0 flex-[1_1_100%] gap-2">
                 <Select value={searchMode} onChange={(e) => setSearchMode(e.target.value as SearchMode)} aria-label="Search by">
@@ -745,6 +795,9 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
                 disabled={kernFilter !== 'all'}
                 onChange={(e) => setHideGrouped(e.target.checked)}
               />
+              <span className="ml-auto">
+                <HelpButton label="Help: Font panel" onClick={() => showHelp('font')} />
+              </span>
             </Toolbar>
             <CanvasGrid
               label="Font glyphs"
@@ -765,7 +818,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
         </div>
         <Splitter direction="horizontal" onDrag={(d) => resize(0, d)} />
         <div className="flex min-h-0 min-w-0 flex-col" style={{ width: `${widths[1] * 100}%` }}>
-          <Column active={source === 'groups'} className="min-h-0 flex-1">
+          <Column active={source === 'groups'} topic="groups" className="min-h-0 flex-1">
             <Toolbar>
               <Segmented<SideId>
                 tone="accent"
@@ -793,6 +846,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
                   </option>
                 ))}
               </Select>
+              <HelpButton label="Help: Groups panel" onClick={() => showHelp('groups')} />
             </Toolbar>
             <div className="flex min-h-0 flex-col" style={{ flex: groupsFraction }}>
               <CanvasGrid
@@ -835,7 +889,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
         </div>
         <Splitter direction="horizontal" onDrag={(d) => resize(1, d)} />
         <div className="flex min-h-0 min-w-0 flex-col" style={{ width: `${widths[2] * 100}%` }}>
-          <Column active={source === 'pairs'} className="flex-1">
+          <Column active={source === 'pairs'} topic="pairs" className="flex-1">
             <Toolbar>
               <span className="text-[13px] font-semibold">Pairs</span>
               <span className="min-w-0 flex-1 truncate text-xs text-muted">
@@ -851,6 +905,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
               >
                 Delete pairs
               </Button>
+              <HelpButton label="Help: Pairs panel" onClick={() => showHelp('pairs')} />
             </Toolbar>
             <PairsList
               rows={pairRows}
@@ -864,8 +919,24 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
         </div>
       </div>
       <Splitter direction="vertical" onDrag={(d) => setPreviewFraction((f) => Math.min(0.75, Math.max(0.12, f - d)))} />
-      <div className="mx-3 mb-3 flex min-h-0 flex-col overflow-hidden rounded-xl border border-line bg-surface" style={{ flex: previewFraction }}>
-        <Preview font={font} side={side} input={previewInput} run={run} readOnly={readOnly} keysRef={previewKeys} />
+      <div
+        className="mx-3 mb-3 flex min-h-0 flex-col overflow-hidden rounded-xl border border-line bg-surface"
+        style={{ flex: previewFraction }}
+        onPointerDownCapture={() => setHelpContext('preview')}
+        onFocusCapture={() => setHelpContext('preview')}
+      >
+        <Preview
+          font={font}
+          side={side}
+          input={previewInput}
+          run={run}
+          readOnly={readOnly}
+          keysRef={previewKeys}
+          beamY={beamY}
+          onToggleBeam={toggleBeam}
+          onMoveBeam={moveBeam}
+          onHelp={() => showHelp('preview')}
+        />
       </div>
       </div>
 
