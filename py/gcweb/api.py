@@ -11,6 +11,7 @@ import json
 from ufo_spacing_lib.groups_core import FontGroupsManager
 
 from gcweb.document import UfoDocument
+from gcweb.export import font_payload
 
 MUTATING_OPS = {
     "add_glyphs_to_group",
@@ -35,6 +36,11 @@ def open_font(path: str) -> str:
     _doc = UfoDocument(path)
     _manager = FontGroupsManager(_doc.master)
     return json.dumps(_doc.summary())
+
+
+def font_data() -> str:
+    """Outlines, metrics, groups and kerning for the TS mirror."""
+    return json.dumps(font_payload(_require()), separators=(",", ":"))
 
 
 def close_font() -> str:

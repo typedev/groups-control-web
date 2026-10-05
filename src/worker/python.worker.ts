@@ -6,7 +6,7 @@ const PYODIDE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`
 /** Packages from the Pyodide distribution; our pinned wheels come on top. */
 const PYODIDE_PACKAGES = ['fonttools', 'attrs']
 
-const pySources = import.meta.glob('../../py/gcweb/*.py', {
+const pySources = import.meta.glob(['../../py/gcweb/**/*.py', '../../py/gcweb/vendor/*.json'], {
   query: '?raw',
   import: 'default',
   eager: true,
@@ -46,9 +46,10 @@ async function boot(): Promise<void> {
   await py.loadPackage([...PYODIDE_PACKAGES, ...wheels])
   progress('python', 0.85)
 
-  py.FS.mkdirTree('/app/gcweb')
   for (const [path, source] of Object.entries(pySources)) {
-    py.FS.writeFile(`/app/gcweb/${path.split('/').pop()}`, source)
+    const target = `/app/gcweb/${path.split('/py/gcweb/')[1]}`
+    py.FS.mkdirTree(target.slice(0, target.lastIndexOf('/')))
+    py.FS.writeFile(target, source)
   }
   py.runPython("import sys; sys.path.insert(0, '/app')")
   api = py.pyimport('gcweb.api')
@@ -77,6 +78,7 @@ function open(input: OpenInput): unknown {
 
 const handlers: Record<string, (...params: never[]) => unknown> = {
   open,
+  fontData: () => JSON.parse(api.font_data()),
   close: () => JSON.parse(api.close_font()),
 }
 

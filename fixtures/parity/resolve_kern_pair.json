@@ -1,0 +1,1798 @@
+{
+ "groups": {
+  "public.kern1.A": [
+   "A",
+   "Aacute"
+  ],
+  "public.kern2.V": [
+   "V",
+   "W"
+  ],
+  "public.kern1.T": [
+   "T"
+  ],
+  "public.kern2.o": [
+   "o",
+   "e"
+  ],
+  "public.kern2.dup": [
+   "W"
+  ],
+  "public.kern1.empty": [],
+  "other": [
+   "x"
+  ]
+ },
+ "kerning": [
+  [
+   "public.kern1.A",
+   "public.kern2.V",
+   -80
+  ],
+  [
+   "Aacute",
+   "public.kern2.V",
+   -60
+  ],
+  [
+   "public.kern1.A",
+   "W",
+   -70
+  ],
+  [
+   "Aacute",
+   "W",
+   -50
+  ],
+  [
+   "public.kern1.T",
+   "public.kern2.o",
+   -90
+  ],
+  [
+   "T",
+   "e",
+   0
+  ],
+  [
+   "period",
+   "comma",
+   20
+  ],
+  [
+   "A",
+   "period",
+   -10
+  ]
+ ],
+ "cases": [
+  {
+   "pair": [
+    "A",
+    "A"
+   ],
+   "left": "public.kern1.A",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "A",
+    "Aacute"
+   ],
+   "left": "public.kern1.A",
+   "right": "Aacute",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "Aacute"
+  },
+  {
+   "pair": [
+    "A",
+    "V"
+   ],
+   "left": "public.kern1.A",
+   "right": "public.kern2.V",
+   "value": -80,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "A",
+    "W"
+   ],
+   "left": "public.kern1.A",
+   "right": "W",
+   "value": -70,
+   "isException": true,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "A",
+    "T"
+   ],
+   "left": "public.kern1.A",
+   "right": "T",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "T"
+  },
+  {
+   "pair": [
+    "A",
+    "o"
+   ],
+   "left": "public.kern1.A",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "A",
+    "e"
+   ],
+   "left": "public.kern1.A",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "A",
+    "period"
+   ],
+   "left": "A",
+   "right": "period",
+   "value": -10,
+   "isException": true,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "period"
+  },
+  {
+   "pair": [
+    "A",
+    "comma"
+   ],
+   "left": "public.kern1.A",
+   "right": "comma",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "comma"
+  },
+  {
+   "pair": [
+    "A",
+    "x"
+   ],
+   "left": "public.kern1.A",
+   "right": "x",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "x"
+  },
+  {
+   "pair": [
+    "A",
+    "A.uuid123"
+   ],
+   "left": "public.kern1.A",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "A",
+    "Q"
+   ],
+   "left": "public.kern1.A",
+   "right": "Q",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "Q"
+  },
+  {
+   "pair": [
+    "Aacute",
+    "A"
+   ],
+   "left": "public.kern1.A",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "Aacute",
+    "Aacute"
+   ],
+   "left": "public.kern1.A",
+   "right": "Aacute",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "Aacute"
+  },
+  {
+   "pair": [
+    "Aacute",
+    "V"
+   ],
+   "left": "Aacute",
+   "right": "public.kern2.V",
+   "value": -60,
+   "isException": true,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "Aacute",
+    "W"
+   ],
+   "left": "Aacute",
+   "right": "W",
+   "value": -50,
+   "isException": true,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "Aacute",
+    "T"
+   ],
+   "left": "public.kern1.A",
+   "right": "T",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "T"
+  },
+  {
+   "pair": [
+    "Aacute",
+    "o"
+   ],
+   "left": "public.kern1.A",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "Aacute",
+    "e"
+   ],
+   "left": "public.kern1.A",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "Aacute",
+    "period"
+   ],
+   "left": "public.kern1.A",
+   "right": "period",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "period"
+  },
+  {
+   "pair": [
+    "Aacute",
+    "comma"
+   ],
+   "left": "public.kern1.A",
+   "right": "comma",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "comma"
+  },
+  {
+   "pair": [
+    "Aacute",
+    "x"
+   ],
+   "left": "public.kern1.A",
+   "right": "x",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "x"
+  },
+  {
+   "pair": [
+    "Aacute",
+    "A.uuid123"
+   ],
+   "left": "public.kern1.A",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "Aacute",
+    "Q"
+   ],
+   "left": "public.kern1.A",
+   "right": "Q",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "Q"
+  },
+  {
+   "pair": [
+    "V",
+    "A"
+   ],
+   "left": "V",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "V",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "V",
+    "Aacute"
+   ],
+   "left": "V",
+   "right": "Aacute",
+   "value": null,
+   "isException": false,
+   "leftGroup": "V",
+   "rightGroup": "Aacute"
+  },
+  {
+   "pair": [
+    "V",
+    "V"
+   ],
+   "left": "V",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "V",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "V",
+    "W"
+   ],
+   "left": "V",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "V",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "V",
+    "T"
+   ],
+   "left": "V",
+   "right": "T",
+   "value": null,
+   "isException": false,
+   "leftGroup": "V",
+   "rightGroup": "T"
+  },
+  {
+   "pair": [
+    "V",
+    "o"
+   ],
+   "left": "V",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "V",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "V",
+    "e"
+   ],
+   "left": "V",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "V",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "V",
+    "period"
+   ],
+   "left": "V",
+   "right": "period",
+   "value": null,
+   "isException": false,
+   "leftGroup": "V",
+   "rightGroup": "period"
+  },
+  {
+   "pair": [
+    "V",
+    "comma"
+   ],
+   "left": "V",
+   "right": "comma",
+   "value": null,
+   "isException": false,
+   "leftGroup": "V",
+   "rightGroup": "comma"
+  },
+  {
+   "pair": [
+    "V",
+    "x"
+   ],
+   "left": "V",
+   "right": "x",
+   "value": null,
+   "isException": false,
+   "leftGroup": "V",
+   "rightGroup": "x"
+  },
+  {
+   "pair": [
+    "V",
+    "A.uuid123"
+   ],
+   "left": "V",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "V",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "V",
+    "Q"
+   ],
+   "left": "V",
+   "right": "Q",
+   "value": null,
+   "isException": false,
+   "leftGroup": "V",
+   "rightGroup": "Q"
+  },
+  {
+   "pair": [
+    "W",
+    "A"
+   ],
+   "left": "W",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "W",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "W",
+    "Aacute"
+   ],
+   "left": "W",
+   "right": "Aacute",
+   "value": null,
+   "isException": false,
+   "leftGroup": "W",
+   "rightGroup": "Aacute"
+  },
+  {
+   "pair": [
+    "W",
+    "V"
+   ],
+   "left": "W",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "W",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "W",
+    "W"
+   ],
+   "left": "W",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "W",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "W",
+    "T"
+   ],
+   "left": "W",
+   "right": "T",
+   "value": null,
+   "isException": false,
+   "leftGroup": "W",
+   "rightGroup": "T"
+  },
+  {
+   "pair": [
+    "W",
+    "o"
+   ],
+   "left": "W",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "W",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "W",
+    "e"
+   ],
+   "left": "W",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "W",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "W",
+    "period"
+   ],
+   "left": "W",
+   "right": "period",
+   "value": null,
+   "isException": false,
+   "leftGroup": "W",
+   "rightGroup": "period"
+  },
+  {
+   "pair": [
+    "W",
+    "comma"
+   ],
+   "left": "W",
+   "right": "comma",
+   "value": null,
+   "isException": false,
+   "leftGroup": "W",
+   "rightGroup": "comma"
+  },
+  {
+   "pair": [
+    "W",
+    "x"
+   ],
+   "left": "W",
+   "right": "x",
+   "value": null,
+   "isException": false,
+   "leftGroup": "W",
+   "rightGroup": "x"
+  },
+  {
+   "pair": [
+    "W",
+    "A.uuid123"
+   ],
+   "left": "W",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "W",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "W",
+    "Q"
+   ],
+   "left": "W",
+   "right": "Q",
+   "value": null,
+   "isException": false,
+   "leftGroup": "W",
+   "rightGroup": "Q"
+  },
+  {
+   "pair": [
+    "T",
+    "A"
+   ],
+   "left": "public.kern1.T",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.T",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "T",
+    "Aacute"
+   ],
+   "left": "public.kern1.T",
+   "right": "Aacute",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.T",
+   "rightGroup": "Aacute"
+  },
+  {
+   "pair": [
+    "T",
+    "V"
+   ],
+   "left": "public.kern1.T",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.T",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "T",
+    "W"
+   ],
+   "left": "public.kern1.T",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.T",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "T",
+    "T"
+   ],
+   "left": "public.kern1.T",
+   "right": "T",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.T",
+   "rightGroup": "T"
+  },
+  {
+   "pair": [
+    "T",
+    "o"
+   ],
+   "left": "public.kern1.T",
+   "right": "public.kern2.o",
+   "value": -90,
+   "isException": false,
+   "leftGroup": "public.kern1.T",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "T",
+    "e"
+   ],
+   "left": "T",
+   "right": "e",
+   "value": 0,
+   "isException": true,
+   "leftGroup": "public.kern1.T",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "T",
+    "period"
+   ],
+   "left": "public.kern1.T",
+   "right": "period",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.T",
+   "rightGroup": "period"
+  },
+  {
+   "pair": [
+    "T",
+    "comma"
+   ],
+   "left": "public.kern1.T",
+   "right": "comma",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.T",
+   "rightGroup": "comma"
+  },
+  {
+   "pair": [
+    "T",
+    "x"
+   ],
+   "left": "public.kern1.T",
+   "right": "x",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.T",
+   "rightGroup": "x"
+  },
+  {
+   "pair": [
+    "T",
+    "A.uuid123"
+   ],
+   "left": "public.kern1.T",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.T",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "T",
+    "Q"
+   ],
+   "left": "public.kern1.T",
+   "right": "Q",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.T",
+   "rightGroup": "Q"
+  },
+  {
+   "pair": [
+    "o",
+    "A"
+   ],
+   "left": "o",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "o",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "o",
+    "Aacute"
+   ],
+   "left": "o",
+   "right": "Aacute",
+   "value": null,
+   "isException": false,
+   "leftGroup": "o",
+   "rightGroup": "Aacute"
+  },
+  {
+   "pair": [
+    "o",
+    "V"
+   ],
+   "left": "o",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "o",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "o",
+    "W"
+   ],
+   "left": "o",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "o",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "o",
+    "T"
+   ],
+   "left": "o",
+   "right": "T",
+   "value": null,
+   "isException": false,
+   "leftGroup": "o",
+   "rightGroup": "T"
+  },
+  {
+   "pair": [
+    "o",
+    "o"
+   ],
+   "left": "o",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "o",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "o",
+    "e"
+   ],
+   "left": "o",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "o",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "o",
+    "period"
+   ],
+   "left": "o",
+   "right": "period",
+   "value": null,
+   "isException": false,
+   "leftGroup": "o",
+   "rightGroup": "period"
+  },
+  {
+   "pair": [
+    "o",
+    "comma"
+   ],
+   "left": "o",
+   "right": "comma",
+   "value": null,
+   "isException": false,
+   "leftGroup": "o",
+   "rightGroup": "comma"
+  },
+  {
+   "pair": [
+    "o",
+    "x"
+   ],
+   "left": "o",
+   "right": "x",
+   "value": null,
+   "isException": false,
+   "leftGroup": "o",
+   "rightGroup": "x"
+  },
+  {
+   "pair": [
+    "o",
+    "A.uuid123"
+   ],
+   "left": "o",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "o",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "o",
+    "Q"
+   ],
+   "left": "o",
+   "right": "Q",
+   "value": null,
+   "isException": false,
+   "leftGroup": "o",
+   "rightGroup": "Q"
+  },
+  {
+   "pair": [
+    "e",
+    "A"
+   ],
+   "left": "e",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "e",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "e",
+    "Aacute"
+   ],
+   "left": "e",
+   "right": "Aacute",
+   "value": null,
+   "isException": false,
+   "leftGroup": "e",
+   "rightGroup": "Aacute"
+  },
+  {
+   "pair": [
+    "e",
+    "V"
+   ],
+   "left": "e",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "e",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "e",
+    "W"
+   ],
+   "left": "e",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "e",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "e",
+    "T"
+   ],
+   "left": "e",
+   "right": "T",
+   "value": null,
+   "isException": false,
+   "leftGroup": "e",
+   "rightGroup": "T"
+  },
+  {
+   "pair": [
+    "e",
+    "o"
+   ],
+   "left": "e",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "e",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "e",
+    "e"
+   ],
+   "left": "e",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "e",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "e",
+    "period"
+   ],
+   "left": "e",
+   "right": "period",
+   "value": null,
+   "isException": false,
+   "leftGroup": "e",
+   "rightGroup": "period"
+  },
+  {
+   "pair": [
+    "e",
+    "comma"
+   ],
+   "left": "e",
+   "right": "comma",
+   "value": null,
+   "isException": false,
+   "leftGroup": "e",
+   "rightGroup": "comma"
+  },
+  {
+   "pair": [
+    "e",
+    "x"
+   ],
+   "left": "e",
+   "right": "x",
+   "value": null,
+   "isException": false,
+   "leftGroup": "e",
+   "rightGroup": "x"
+  },
+  {
+   "pair": [
+    "e",
+    "A.uuid123"
+   ],
+   "left": "e",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "e",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "e",
+    "Q"
+   ],
+   "left": "e",
+   "right": "Q",
+   "value": null,
+   "isException": false,
+   "leftGroup": "e",
+   "rightGroup": "Q"
+  },
+  {
+   "pair": [
+    "period",
+    "A"
+   ],
+   "left": "period",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "period",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "period",
+    "Aacute"
+   ],
+   "left": "period",
+   "right": "Aacute",
+   "value": null,
+   "isException": false,
+   "leftGroup": "period",
+   "rightGroup": "Aacute"
+  },
+  {
+   "pair": [
+    "period",
+    "V"
+   ],
+   "left": "period",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "period",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "period",
+    "W"
+   ],
+   "left": "period",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "period",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "period",
+    "T"
+   ],
+   "left": "period",
+   "right": "T",
+   "value": null,
+   "isException": false,
+   "leftGroup": "period",
+   "rightGroup": "T"
+  },
+  {
+   "pair": [
+    "period",
+    "o"
+   ],
+   "left": "period",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "period",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "period",
+    "e"
+   ],
+   "left": "period",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "period",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "period",
+    "period"
+   ],
+   "left": "period",
+   "right": "period",
+   "value": null,
+   "isException": false,
+   "leftGroup": "period",
+   "rightGroup": "period"
+  },
+  {
+   "pair": [
+    "period",
+    "comma"
+   ],
+   "left": "period",
+   "right": "comma",
+   "value": 20,
+   "isException": false,
+   "leftGroup": "period",
+   "rightGroup": "comma"
+  },
+  {
+   "pair": [
+    "period",
+    "x"
+   ],
+   "left": "period",
+   "right": "x",
+   "value": null,
+   "isException": false,
+   "leftGroup": "period",
+   "rightGroup": "x"
+  },
+  {
+   "pair": [
+    "period",
+    "A.uuid123"
+   ],
+   "left": "period",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "period",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "period",
+    "Q"
+   ],
+   "left": "period",
+   "right": "Q",
+   "value": null,
+   "isException": false,
+   "leftGroup": "period",
+   "rightGroup": "Q"
+  },
+  {
+   "pair": [
+    "comma",
+    "A"
+   ],
+   "left": "comma",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "comma",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "comma",
+    "Aacute"
+   ],
+   "left": "comma",
+   "right": "Aacute",
+   "value": null,
+   "isException": false,
+   "leftGroup": "comma",
+   "rightGroup": "Aacute"
+  },
+  {
+   "pair": [
+    "comma",
+    "V"
+   ],
+   "left": "comma",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "comma",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "comma",
+    "W"
+   ],
+   "left": "comma",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "comma",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "comma",
+    "T"
+   ],
+   "left": "comma",
+   "right": "T",
+   "value": null,
+   "isException": false,
+   "leftGroup": "comma",
+   "rightGroup": "T"
+  },
+  {
+   "pair": [
+    "comma",
+    "o"
+   ],
+   "left": "comma",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "comma",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "comma",
+    "e"
+   ],
+   "left": "comma",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "comma",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "comma",
+    "period"
+   ],
+   "left": "comma",
+   "right": "period",
+   "value": null,
+   "isException": false,
+   "leftGroup": "comma",
+   "rightGroup": "period"
+  },
+  {
+   "pair": [
+    "comma",
+    "comma"
+   ],
+   "left": "comma",
+   "right": "comma",
+   "value": null,
+   "isException": false,
+   "leftGroup": "comma",
+   "rightGroup": "comma"
+  },
+  {
+   "pair": [
+    "comma",
+    "x"
+   ],
+   "left": "comma",
+   "right": "x",
+   "value": null,
+   "isException": false,
+   "leftGroup": "comma",
+   "rightGroup": "x"
+  },
+  {
+   "pair": [
+    "comma",
+    "A.uuid123"
+   ],
+   "left": "comma",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "comma",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "comma",
+    "Q"
+   ],
+   "left": "comma",
+   "right": "Q",
+   "value": null,
+   "isException": false,
+   "leftGroup": "comma",
+   "rightGroup": "Q"
+  },
+  {
+   "pair": [
+    "x",
+    "A"
+   ],
+   "left": "x",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "x",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "x",
+    "Aacute"
+   ],
+   "left": "x",
+   "right": "Aacute",
+   "value": null,
+   "isException": false,
+   "leftGroup": "x",
+   "rightGroup": "Aacute"
+  },
+  {
+   "pair": [
+    "x",
+    "V"
+   ],
+   "left": "x",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "x",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "x",
+    "W"
+   ],
+   "left": "x",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "x",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "x",
+    "T"
+   ],
+   "left": "x",
+   "right": "T",
+   "value": null,
+   "isException": false,
+   "leftGroup": "x",
+   "rightGroup": "T"
+  },
+  {
+   "pair": [
+    "x",
+    "o"
+   ],
+   "left": "x",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "x",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "x",
+    "e"
+   ],
+   "left": "x",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "x",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "x",
+    "period"
+   ],
+   "left": "x",
+   "right": "period",
+   "value": null,
+   "isException": false,
+   "leftGroup": "x",
+   "rightGroup": "period"
+  },
+  {
+   "pair": [
+    "x",
+    "comma"
+   ],
+   "left": "x",
+   "right": "comma",
+   "value": null,
+   "isException": false,
+   "leftGroup": "x",
+   "rightGroup": "comma"
+  },
+  {
+   "pair": [
+    "x",
+    "x"
+   ],
+   "left": "x",
+   "right": "x",
+   "value": null,
+   "isException": false,
+   "leftGroup": "x",
+   "rightGroup": "x"
+  },
+  {
+   "pair": [
+    "x",
+    "A.uuid123"
+   ],
+   "left": "x",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "x",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "x",
+    "Q"
+   ],
+   "left": "x",
+   "right": "Q",
+   "value": null,
+   "isException": false,
+   "leftGroup": "x",
+   "rightGroup": "Q"
+  },
+  {
+   "pair": [
+    "A.uuid123",
+    "A"
+   ],
+   "left": "public.kern1.A",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "A.uuid123",
+    "Aacute"
+   ],
+   "left": "public.kern1.A",
+   "right": "Aacute",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "Aacute"
+  },
+  {
+   "pair": [
+    "A.uuid123",
+    "V"
+   ],
+   "left": "public.kern1.A",
+   "right": "public.kern2.V",
+   "value": -80,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "A.uuid123",
+    "W"
+   ],
+   "left": "public.kern1.A",
+   "right": "W",
+   "value": -70,
+   "isException": true,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "A.uuid123",
+    "T"
+   ],
+   "left": "public.kern1.A",
+   "right": "T",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "T"
+  },
+  {
+   "pair": [
+    "A.uuid123",
+    "o"
+   ],
+   "left": "public.kern1.A",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "A.uuid123",
+    "e"
+   ],
+   "left": "public.kern1.A",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "A.uuid123",
+    "period"
+   ],
+   "left": "A",
+   "right": "period",
+   "value": -10,
+   "isException": true,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "period"
+  },
+  {
+   "pair": [
+    "A.uuid123",
+    "comma"
+   ],
+   "left": "public.kern1.A",
+   "right": "comma",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "comma"
+  },
+  {
+   "pair": [
+    "A.uuid123",
+    "x"
+   ],
+   "left": "public.kern1.A",
+   "right": "x",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "x"
+  },
+  {
+   "pair": [
+    "A.uuid123",
+    "A.uuid123"
+   ],
+   "left": "public.kern1.A",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "A.uuid123",
+    "Q"
+   ],
+   "left": "public.kern1.A",
+   "right": "Q",
+   "value": null,
+   "isException": false,
+   "leftGroup": "public.kern1.A",
+   "rightGroup": "Q"
+  },
+  {
+   "pair": [
+    "Q",
+    "A"
+   ],
+   "left": "Q",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "Q",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "Q",
+    "Aacute"
+   ],
+   "left": "Q",
+   "right": "Aacute",
+   "value": null,
+   "isException": false,
+   "leftGroup": "Q",
+   "rightGroup": "Aacute"
+  },
+  {
+   "pair": [
+    "Q",
+    "V"
+   ],
+   "left": "Q",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "Q",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "Q",
+    "W"
+   ],
+   "left": "Q",
+   "right": "public.kern2.V",
+   "value": null,
+   "isException": false,
+   "leftGroup": "Q",
+   "rightGroup": "public.kern2.V"
+  },
+  {
+   "pair": [
+    "Q",
+    "T"
+   ],
+   "left": "Q",
+   "right": "T",
+   "value": null,
+   "isException": false,
+   "leftGroup": "Q",
+   "rightGroup": "T"
+  },
+  {
+   "pair": [
+    "Q",
+    "o"
+   ],
+   "left": "Q",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "Q",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "Q",
+    "e"
+   ],
+   "left": "Q",
+   "right": "public.kern2.o",
+   "value": null,
+   "isException": false,
+   "leftGroup": "Q",
+   "rightGroup": "public.kern2.o"
+  },
+  {
+   "pair": [
+    "Q",
+    "period"
+   ],
+   "left": "Q",
+   "right": "period",
+   "value": null,
+   "isException": false,
+   "leftGroup": "Q",
+   "rightGroup": "period"
+  },
+  {
+   "pair": [
+    "Q",
+    "comma"
+   ],
+   "left": "Q",
+   "right": "comma",
+   "value": null,
+   "isException": false,
+   "leftGroup": "Q",
+   "rightGroup": "comma"
+  },
+  {
+   "pair": [
+    "Q",
+    "x"
+   ],
+   "left": "Q",
+   "right": "x",
+   "value": null,
+   "isException": false,
+   "leftGroup": "Q",
+   "rightGroup": "x"
+  },
+  {
+   "pair": [
+    "Q",
+    "A.uuid123"
+   ],
+   "left": "Q",
+   "right": "A",
+   "value": null,
+   "isException": false,
+   "leftGroup": "Q",
+   "rightGroup": "A"
+  },
+  {
+   "pair": [
+    "Q",
+    "Q"
+   ],
+   "left": "Q",
+   "right": "Q",
+   "value": null,
+   "isException": false,
+   "leftGroup": "Q",
+   "rightGroup": "Q"
+  }
+ ]
+}

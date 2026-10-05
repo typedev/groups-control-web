@@ -1,4 +1,5 @@
 // Messages between the main thread and the Python worker.
+import type { FontData } from '../model/types'
 
 /** A file of the font being opened, path relative to the drop root. */
 export type FontFile = { path: string; bytes: ArrayBuffer }
@@ -27,6 +28,7 @@ export type FontSummary = {
 /** RPC methods: params → result. */
 export type Api = {
   open: (input: OpenInput) => FontSummary
+  fontData: () => FontData
   close: () => null
 }
 

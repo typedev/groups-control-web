@@ -6,6 +6,19 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Read-only Groups Control (Phase 2): font grid (virtualized canvas, name /
+  Unicode search with wildcards, glyph order / Unicode sort, Hide grouped,
+  kerning filter, grouped / kerned corner marks, click a grouped glyph to jump
+  to its group); groups grid with Side 1 / Side 2, group dropdown, stacked
+  members, key margin and validation markers (empty, missing glyphs, margin
+  mismatch, italic angle aware); content grid with margin badges; kern pairs
+  list with Left / Right / Value / Exc / Lang columns, sorting and selection;
+  header stats; resizable columns.
+- Worker payload with outlines (component references), angled margins for
+  italics, groups, kerning, and script/language problems of every pair
+  (Font-Rover's `languages/compat.py`, vendored by `scripts/vendor_sync.py`).
+- TS port of `resolve_kern_pair` for drawing, with a parity fixture generated
+  from ufo-spacing-lib.
 - App skeleton: Vite + React + Tailwind, Python (Pyodide 314.0.7) in a Web
   Worker with a typed RPC, loader with progress and version info.
 - Open a `.ufo` folder (drop or folder picker) or a `.ufoz` file (drop or
