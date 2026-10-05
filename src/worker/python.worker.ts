@@ -110,6 +110,13 @@ const handlers: Record<string, (...params: never[]) => unknown> = {
     JSON.parse(api.remove_glyphs(group, JSON.stringify(glyphs), keep)),
   deleteGroup: (group: string, keep: boolean) => JSON.parse(api.delete_group(group, keep)),
   renameGroup: (group: string, short: string) => JSON.parse(api.rename_group(group, short)),
+  deletePairs: (pairs: [string, string][]) => JSON.parse(api.delete_pairs(JSON.stringify(pairs))),
+  previewLine: (subject: unknown) => JSON.parse(api.preview_line(JSON.stringify(subject))),
+  previewPairs: (pairs: unknown, expanded: boolean, perRow: number) =>
+    JSON.parse(api.preview_pairs(JSON.stringify(pairs), expanded, perRow)),
+  kernNudge: (l: string, r: string, delta: number) => JSON.parse(api.kern_nudge(l, r, delta)),
+  kernRemove: (l: string, r: string) => JSON.parse(api.kern_remove(l, r)),
+  kernException: (l: string, r: string, side: string) => JSON.parse(api.kern_exception(l, r, side)),
   history: () => JSON.parse(api.history()),
   setHistoryRecording: (on: boolean) => JSON.parse(api.set_history_recording(on)),
   clearHistory: () => JSON.parse(api.clear_history()),

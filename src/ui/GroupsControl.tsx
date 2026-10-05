@@ -32,6 +32,7 @@ import {
 import type { DialogSpec } from './Dialog'
 import { HistoryPanel } from './HistoryPanel'
 import { PairsList } from './PairsList'
+import { Preview, type PreviewInput, type PreviewKeys } from './Preview'
 import { Splitter } from './Splitter'
 import { useDark } from './useDark'
 
@@ -136,6 +137,8 @@ export function GroupsControl({ font, readOnly, run, ask, onStats }: Props) {
 
   const [widths, setWidths] = useState([1 / 3, 1 / 3, 1 / 3])
   const [groupsFraction, setGroupsFraction] = useState(0.55)
+  const [previewFraction, setPreviewFraction] = useState(0.3)
+  const previewKeys = useRef<PreviewKeys | null>(null)
   const [history, setHistory] = useState<HistoryState | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
 
@@ -206,6 +209,37 @@ export function GroupsControl({ font, readOnly, run, ask, onStats }: Props) {
           : []
     return buildPairRows(font, entries)
   }, [font, side, listSource, fontSelection, selectedGroup])
+
+  /** WIN:1750-1808 — what the bottom preview shows. */
+  const previewInput = useMemo<PreviewInput>(() => {
+    const pairs = pairRows
+      .filter((r) => pairSelection.has(`${r.left}\u0000${r.right}`))
+      .map((r) => [r.left, r.right] as [string, string])
+    if (source === 'pairs' && pairs.length) {
+      const title = pairs.length === 1 ? pairs[0].map((k) => (k in font.data.groups ? `@${displayGroupName(k, k.startsWith('public.kern1.') ? 'kern1' : 'kern2')}` : k)).join('  ') : ''
+      return { kind: 'pairs', pairs, title }
+    }
+    const glyph =
+      listSource === 'font' && fontSelection.size
+        ? [...fontSelection][0]
+        : source !== 'font' && contentSelection.size === 1
+          ? [...contentSelection][0]
+          : null
+    if (glyph) {
+      const group = font.groupOf(glyph, side)
+      const members = group ? font.data.groups[group] : [glyph]
+      return { kind: 'line', title: glyph, subject: { names: [glyph], side, key: members[0] ?? glyph, members } }
+    }
+    if (selectedGroup && selectedGroup in font.data.groups) {
+      const members = font.data.groups[selectedGroup]
+      return {
+        kind: 'line',
+        title: `@ ${displayGroupName(selectedGroup, side)}`,
+        subject: { names: members, side, key: members[0] ?? null, members },
+      }
+    }
+    return null
+  }, [font, side, source, listSource, pairRows, pairSelection, fontSelection, contentSelection, selectedGroup])
 
   /** Selected font glyphs in grid order. */
   const fontSelected = () => fontNames.filter((n) => fontSelection.has(n))
@@ -348,6 +382,23 @@ export function GroupsControl({ font, readOnly, run, ask, onStats }: Props) {
     }
     const res = await run(() => python.call('renameGroup', [group, name]))
     if (res) pendingSelect.current = res.result.group
+  }
+
+  const deletePairs = async () => {
+    const visible = new Set(pairRows.map((r) => `${r.left}\u0000${r.right}`))
+    const keys = [...pairSelection].filter((k) => visible.has(k))
+    if (!keys.length) return
+    const answer = await ask({
+      title: `Delete ${keys.length} pair${keys.length === 1 ? '' : 's'}?`,
+      body: 'The kerning values are removed from the font. Revert to file brings them back until you save.',
+      buttons: [
+        { label: 'Cancel', value: 'cancel' },
+        { label: 'Delete', value: 'delete', kind: 'destructive' },
+      ],
+    })
+    if (answer.value !== 'delete') return
+    const pairs = keys.map((k) => k.split('\u0000') as [string, string])
+    if (await run(() => python.call('deletePairs', [pairs]))) setPairSelection(new Set())
   }
 
   // -- drag & drop ------------------------------------------------------------------
@@ -531,7 +582,8 @@ export function GroupsControl({ font, readOnly, run, ask, onStats }: Props) {
         </label>
       </div>
 
-      <div className="flex min-h-0 flex-1 p-1.5">
+      <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 p-1.5" style={{ flex: 1 - previewFraction }}>
         <div className="flex min-h-0 min-w-0 flex-col" style={{ width: `${widths[0] * 100}%` }}>
           <Column active={source === 'font'} drop={dropTarget?.kind === 'font'} className="flex-1">
             <Toolbar>
@@ -656,17 +708,37 @@ export function GroupsControl({ font, readOnly, run, ask, onStats }: Props) {
           <Column active={source === 'pairs'} className="flex-1">
             <Toolbar>
               <span className="font-medium">Pairs</span>
-              <span className="truncate text-zinc-500">
+              <span className="min-w-0 flex-1 truncate text-zinc-500">
                 {listSource === 'font' && fontSelection.size
                   ? [...fontSelection][0]
                   : selectedGroup
                     ? `@.${displayGroupName(selectedGroup, side)} and its members`
                     : ''}
               </span>
+              <button
+                type="button"
+                className={toolButton}
+                disabled={readOnly || !pairRows.some((r) => pairSelection.has(`${r.left}\u0000${r.right}`))}
+                onClick={deletePairs}
+              >
+                Delete Pairs
+              </button>
             </Toolbar>
-            <PairsList rows={pairRows} selected={pairSelection} onSelect={setPairSelection} onFocus={() => setSource('pairs')} />
+            <PairsList
+              rows={pairRows}
+              selected={pairSelection}
+              onSelect={setPairSelection}
+              onFocus={() => setSource('pairs')}
+              onDelete={readOnly ? undefined : deletePairs}
+              onEditKey={(e) => previewKeys.current?.(e) ?? false}
+            />
           </Column>
         </div>
+      </div>
+      <Splitter direction="vertical" onDrag={(d) => setPreviewFraction((f) => Math.min(0.75, Math.max(0.12, f - d)))} />
+      <div className="mx-1.5 mb-1.5 flex min-h-0 flex-col overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-800" style={{ flex: previewFraction }}>
+        <Preview font={font} side={side} input={previewInput} run={run} readOnly={readOnly} keysRef={previewKeys} />
+      </div>
       </div>
 
       {drag?.active && (

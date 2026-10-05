@@ -116,3 +116,11 @@ def test_placing_and_moving_keep_the_history():
     api.move_in_group(K1, json.dumps(["A"]), 0)
     call(api.remove_glyphs, K1, json.dumps(["B"]), True)
     assert call(api.history)["text"] == f"add K+ {K1} B\nremove K+ {K1} B\n"
+
+
+def test_delete_pairs():
+    out = call(api.delete_pairs, json.dumps([["T", K2], ["nope", "x"]]))
+    assert out["result"] == {"removed": [["T", K2]]}
+    assert out["delta"]["kerning"]["removed"] == [["T", K2]]
+    assert ["T", K2] in out["delta"]["lang"]["clear"]
+    assert out["dirty"] is True

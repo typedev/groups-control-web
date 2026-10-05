@@ -17,6 +17,7 @@ from ufo_spacing_lib.groups_core import FontGroupsManager
 from gcweb.document import GROUPS_FILE, KERNING_FILE, UfoDocument
 from gcweb.export import font_payload
 from gcweb.lang import LangChecker
+from gcweb.preview import KernEdit, dependency_line, pair_rows
 from gcweb.vendor.groups_history import history_to_text
 from gcweb.vendor.naming import name_problem
 
@@ -33,6 +34,7 @@ MUTATING_OPS = {
 _doc: UfoDocument | None = None
 _manager: FontGroupsManager | None = None
 _lang: LangChecker | None = None
+_kern: KernEdit | None = None
 _pending_save: dict[str, bytes | None] = {}
 
 
@@ -43,10 +45,11 @@ def _require() -> UfoDocument:
 
 
 def open_font(path: str) -> str:
-    global _doc, _manager, _lang
+    global _doc, _manager, _lang, _kern
     _doc = UfoDocument(path)
     _manager = FontGroupsManager(_doc.master)
     _lang = LangChecker(_doc)
+    _kern = KernEdit(_doc, _manager)
     return json.dumps(_doc.summary())
 
 
@@ -56,8 +59,8 @@ def font_data() -> str:
 
 
 def close_font() -> str:
-    global _doc, _manager, _lang
-    _doc = _manager = _lang = None
+    global _doc, _manager, _lang, _kern
+    _doc = _manager = _lang = _kern = None
     return "null"
 
 
@@ -184,6 +187,47 @@ def rename_group(old: str, new_short: str) -> str:
         raise ValueError(problem)
     _manager.rename_group(old, prefix + new_short, check_kerning=True)
     return _finish({"group": prefix + new_short})
+
+
+def delete_pairs(pairs_json: str) -> str:
+    """Remove kerning keys (pairs list: Delete Pairs / Backspace), one step."""
+    kerning = _require().master.kerning
+    removed = []
+    for left, right in json.loads(pairs_json):
+        if (left, right) in kerning:
+            del kerning[(left, right)]
+            removed.append([left, right])
+    return _finish({"removed": removed})
+
+
+# -- preview & kerning edits -------------------------------------------------------
+
+
+def preview_line(subject_json: str) -> str:
+    """{names, side, key, members, mode} → glyph tokens of the dependency line."""
+    s = json.loads(subject_json)
+    return json.dumps(
+        dependency_line(_require(), s["names"], s["side"], s.get("key"), s.get("members"), s["mode"])
+    )
+
+
+def preview_pairs(pairs_json: str, expanded: bool, per_row: int) -> str:
+    return json.dumps(pair_rows(_require(), json.loads(pairs_json), expanded, per_row))
+
+
+def kern_nudge(left: str, right: str, delta: int) -> str:
+    _require()
+    return _finish({"key": _kern.nudge(left, right, delta)})
+
+
+def kern_remove(left: str, right: str) -> str:
+    _require()
+    return _finish({"key": _kern.remove(left, right)})
+
+
+def kern_exception(left: str, right: str, side: str) -> str:
+    _require()
+    return _finish({"key": _kern.exception(left, right, side)})
 
 
 # -- history journal (manager.history, Font-Rover groups_history.py format) --------

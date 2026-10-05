@@ -1,5 +1,6 @@
 // Messages between the main thread and the Python worker.
 import type { Delta, FontData } from '../model/types'
+import type { PreviewSubject, PreviewToken } from '../model/preview'
 
 /** A file of the font being opened, path relative to the drop root. */
 export type FontFile = { path: string; bytes: ArrayBuffer }
@@ -46,7 +47,13 @@ export type Api = {
   deleteGroup: (group: string, keepKerning: boolean) => OpResult<null>
   renameGroup: (group: string, newShortName: string) => OpResult<{ group: string }>
   move: (group: string, glyphs: string[], index: number) => OpResult<null>
+  deletePairs: (pairs: [string, string][]) => OpResult<{ removed: [string, string][] }>
   revert: () => Delta
+  previewLine: (subject: PreviewSubject) => PreviewToken[]
+  previewPairs: (pairs: [string, string][], expanded: boolean, perRow: number) => PreviewToken[][]
+  kernNudge: (left: string, right: string, delta: number) => OpResult<{ key: [string, string] }>
+  kernRemove: (left: string, right: string) => OpResult<{ key: [string, string] | null }>
+  kernException: (left: string, right: string, side: 'left' | 'right' | 'both') => OpResult<{ key: [string, string] }>
   history: () => HistoryState
   setHistoryRecording: (on: boolean) => HistoryState
   clearHistory: () => HistoryState

@@ -6,6 +6,23 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Preview and kerning editing (Phase 4): bottom preview with the dependency
+  line of the selected group or glyph (Members / All / Smart chains, control
+  glyphs per script and case, mismatch / non-member colours, checked-side
+  margins) via Font-Rover's `dependencies.py` (vendored); pairs mode for the
+  selected pairs with kerning applied, bars, values and exception markers,
+  Expand (all left × right glyphs), pairs per line; kerning keys (arrows ±10,
+  Shift ±5, Alt ±1), Backspace removes the resolved pair, E / Ctrl+E / Alt+E
+  create exceptions (expanded only), Z / X move the selection; the pairs list
+  forwards these keys; Ctrl/Cmd+wheel zoom; size, margins and names options;
+  resizable preview pane.
+- Delete Pairs in the pairs list (button, Backspace / Delete, confirmation).
+- Error boundary: a render error shows a message with Reload instead of a
+  blank page.
+
+### Fixed
+- Scrolling the pairs list crashed the page (event read after React cleared
+  it).
 - Group editing (Phase 3): drag glyphs from the font grid into the group
   (at the drop position; position 0 makes a new key glyph) or onto a group
   cell, drag members back to the font grid to remove them, drag members to

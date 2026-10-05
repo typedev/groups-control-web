@@ -27,6 +27,16 @@ FILES = [
     ]),
     ("font_rover/languages/compat.py", "compat.py", []),
     ("font_rover/groups_control/naming.py", "naming.py", []),
+    ("font_rover/groups_control/dependencies.py", "dependencies.py", [
+        ("from ..languages.compat import glyph_codepoint", "from .compat import glyph_codepoint"),
+        # Font-Rover's utils pull in GLib / designspace_lint; gcweb.fr_font
+        # provides the same functions over ufoLib2.
+        ("from ..utils.glyph_order import safe_glyph_order", "from gcweb.fr_font import safe_glyph_order"),
+        (
+            "from ..utils.margin_edit import same_margin, side_margin  # noqa: F401 (re-exported)",
+            "from gcweb.fr_font import same_margin, side_margin  # noqa: F401 (re-exported)",
+        ),
+    ]),
     ("font_rover/groups_control/groups_history.py", "groups_history.py", []),
     ("font_rover/groups_control/copy_groups.py", "copy_groups.py", [
         # No processes in Pyodide; threads keep the API (and run serially there).

@@ -67,11 +67,15 @@ type Props = {
   selected: Set<string>
   onSelect: (keys: Set<string>) => void
   onFocus: () => void
+  /** Backspace / Delete on the list. */
+  onDelete?: () => void
+  /** Editing keys (arrows, E, Z/X) go to the preview; true when handled. */
+  onEditKey?: (e: React.KeyboardEvent) => boolean
 }
 
 export const rowKey = (r: PairRow) => `${r.left}\u0000${r.right}`
 
-export function PairsList({ rows, selected, onSelect, onFocus }: Props) {
+export function PairsList({ rows, selected, onSelect, onFocus, onDelete, onEditKey }: Props) {
   const [sort, setSort] = useState<PairSort>({ column: 'left', descending: false })
   const sorted = useMemo(() => sortPairRows(rows, sort), [rows, sort])
   const selectedHere = useMemo(() => sorted.filter((r) => selected.has(rowKey(r))).length, [sorted, selected])
@@ -128,8 +132,24 @@ export function PairsList({ rows, selected, onSelect, onFocus }: Props) {
       </div>
       <div
         ref={scroller}
-        className="relative min-h-0 flex-1 overflow-y-auto"
-        onScroll={(e) => setView((v) => ({ ...v, top: e.currentTarget.scrollTop }))}
+        tabIndex={0}
+        aria-label="Kerning pairs"
+        onKeyDown={(e) => {
+          if (e.key !== 'Backspace' && e.key !== 'Delete' && onEditKey?.(e)) {
+            e.preventDefault()
+            return
+          }
+          if ((e.key === 'Backspace' || e.key === 'Delete') && selectedHere) {
+            e.preventDefault()
+            onDelete?.()
+          }
+        }}
+        className="relative min-h-0 flex-1 overflow-y-auto outline-none"
+        onScroll={(e) => {
+          // Read now: React clears currentTarget before a state updater runs.
+          const top = e.currentTarget.scrollTop
+          setView((v) => ({ ...v, top }))
+        }}
       >
         <div style={{ height: sorted.length * ROW }}>
           {sorted.slice(first, last).map((r, i) => {
