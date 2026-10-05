@@ -35,5 +35,5 @@ Its `docs/CLAUDE_GROUPS_CONTROL.md` is the behavioural spec.
   group–group; glyph+group exception wins over group+glyph.
 - A glyph is in at most one kerning group per side; key glyph = first member
   (UFO). Glyphs sources: groups are glyph attributes shared by all masters,
-  kerning is per master — see PLAN §2.1.
+  kerning is per master — see docs/LATER.md (deferred).
 - Saving must be minimal-diff: open → save without edits = zero diff.
