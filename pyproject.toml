@@ -1,0 +1,22 @@
+[project]
+name = "gcweb"
+version = "0.1.0"
+description = "Worker-side Python of groups-control-web (runs in Pyodide)"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+# Keep in sync with public/wheels/manifest.json (scripts/fetch_wheels.py).
+dependencies = [
+    "ufoLib2==0.18.1",
+    "fonttools>=4.62",
+    "ufo-spacing-lib==0.4.3",
+]
+
+[dependency-groups]
+dev = ["pytest"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["py/tests"]
+pythonpath = ["py"]
