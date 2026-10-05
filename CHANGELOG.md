@@ -16,4 +16,4 @@ All notable changes to this project are documented here. The format follows
   style, Revert to file. UFO 2 sources open read-only.
 - Pinned wheels in `public/wheels/` (`scripts/fetch_wheels.py`).
 - GitHub Actions: tests (pytest, Vitest), build, deploy to GitHub Pages.
-- Phase 0 spike and measurements (`spike/`, `docs/DECISIONS.md`).
+- Phase 0 measurements and decisions (`docs/DECISIONS.md`; the spike code was removed after Phase 1).

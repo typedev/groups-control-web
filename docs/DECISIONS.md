@@ -1,7 +1,8 @@
 # Decisions
 
-Outcome of Phase 0 (spike, 2026-10-05). Spike code lives in `spike/` and is
-throwaway; what survives is listed here.
+Outcome of Phase 0 (spike, 2026-10-05). The spike code was removed after
+Phase 1; `spike/` paths below refer to commit 78616d7. What it proved lives
+in `py/gcweb/` and `src/worker/`.
 
 ## 1. Already decided (chat, before the spike)
 
