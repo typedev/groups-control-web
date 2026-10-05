@@ -5,6 +5,11 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Light theme: the faint members behind a group's key glyph were drawn as dark
+  as the key glyph (the build shortens colour tokens like #000000 to #000,
+  which the alpha helper did not read). Any CSS colour is now accepted.
+
 ## [0.1.0] — 2026-10-05
 
 First release: the Groups Control prototype for one UFO.

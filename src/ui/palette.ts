@@ -62,16 +62,36 @@ export function usePalette(): Palette {
   return useMemo(readPalette, [dark, accent])
 }
 
-/** `#rrggbb` or `rgb(...)` with an alpha, for translucent fills. */
+let probe: CanvasRenderingContext2D | null = null
+const rgbCache = new Map<string, [number, number, number] | null>()
+
+/** Any CSS colour as [r, g, b] — the canvas normalises #rgb, names, rgb(), … */
+function toRgb(color: string): [number, number, number] | null {
+  const hit = rgbCache.get(color)
+  if (hit !== undefined) return hit
+  probe ??= document.createElement('canvas').getContext('2d')
+  let out: [number, number, number] | null = null
+  if (probe) {
+    probe.fillStyle = '#000000'
+    probe.fillStyle = color // ignored when invalid
+    const v = String(probe.fillStyle)
+    if (v.startsWith('#') && v.length === 7) {
+      const n = parseInt(v.slice(1), 16)
+      out = [n >> 16, (n >> 8) & 255, n & 255]
+    } else {
+      const m = v.match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/)
+      if (m) out = [Number(m[1]), Number(m[2]), Number(m[3])]
+    }
+  }
+  rgbCache.set(color, out)
+  return out
+}
+
+/**
+ * A colour with an alpha, for translucent fills. Works for any CSS colour:
+ * the build minifies tokens (#000000 → #000), so no format can be assumed.
+ */
 export function withAlpha(color: string, alpha: number): string {
-  if (color.startsWith('#') && color.length === 7) {
-    const n = parseInt(color.slice(1), 16)
-    return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${alpha})`
-  }
-  const m = color.match(/rgba?\(([^)]+)\)/)
-  if (m) {
-    const [r, g, b] = m[1].split(',').map((v) => v.trim())
-    return `rgba(${r},${g},${b},${alpha})`
-  }
-  return color
+  const rgb = toRgb(color)
+  return rgb ? `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${alpha})` : color
 }
