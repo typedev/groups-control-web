@@ -16,10 +16,12 @@ export function classifyName(name: string): OpenInput['kind'] | null {
   return null
 }
 
-/** Parts of a UFO the editor never reads: images, data, hidden files. */
+/**
+ * Hidden files (.DS_Store, .git…) are not part of the font. Everything else
+ * is read: a folder saved as a download must come back complete.
+ */
 export function shouldSkip(relPath: string): boolean {
-  const parts = relPath.split('/')
-  return parts[0] === 'images' || parts[0] === 'data' || parts.some((p) => p.startsWith('.'))
+  return relPath.split('/').some((p) => p.startsWith('.'))
 }
 
 export function checkFolder(name: string, relPaths: string[]): void {

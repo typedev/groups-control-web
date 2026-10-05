@@ -1,7 +1,17 @@
 // Virtualized grid drawn on one canvas: only visible rows are painted.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState, type MouseEvent, type PointerEvent, type Ref } from 'react'
 
 export type CellRect = { x: number; y: number; w: number; h: number }
+
+/** For drag & drop: what lies under a viewport point. */
+export type GridHandle = {
+  /**
+   * null when the point is outside the grid. `index` is the cell under the
+   * point (-1 for empty space); `insert` is the drop position: before that
+   * cell, or the end (glyph_grid/component.py:3676-3720 — no half-cell logic).
+   */
+  hit(clientX: number, clientY: number): { index: number; insert: number } | null
+}
 
 type Props = {
   count: number
@@ -17,6 +27,8 @@ type Props = {
   scrollTo?: { index: number; key: number } | null
   background?: string
   label?: string
+  onCellPointerDown?: (index: number, e: PointerEvent) => void
+  handle?: Ref<GridHandle>
 }
 
 export function CanvasGrid({
@@ -31,6 +43,8 @@ export function CanvasGrid({
   scrollTo,
   background = 'transparent',
   label,
+  onCellPointerDown,
+  handle,
 }: Props) {
   const scroller = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -104,17 +118,24 @@ export function CanvasGrid({
     else if (y + cellHeight > el.scrollTop + size.h) el.scrollTop = y + cellHeight - size.h
   }, [scrollTo, columns, rowStep, cellHeight, size.h])
 
-  const hit = (e: MouseEvent): number => {
-    const el = scroller.current!
+  const locate = (clientX: number, clientY: number) => {
+    const el = scroller.current
+    if (!el) return null
     const box = el.getBoundingClientRect()
-    const x = e.clientX - box.left
-    const y = e.clientY - box.top + el.scrollTop
+    if (clientX < box.left || clientX > box.right || clientY < box.top || clientY > box.bottom) return null
+    const x = clientX - box.left
+    const y = clientY - box.top + el.scrollTop
     const col = Math.floor(x / (cellWidth + gap))
     const row = Math.floor(y / rowStep)
-    if (col >= columns || x - col * (cellWidth + gap) > cellWidth || y - row * rowStep > cellHeight) return -1
-    const index = row * columns + col
-    return index < count ? index : -1
+    const onCell = col < columns && x - col * (cellWidth + gap) <= cellWidth && y - row * rowStep <= cellHeight
+    const raw = row * columns + Math.min(col, columns - 1)
+    const index = onCell && raw < count ? raw : -1
+    return { index, insert: Math.max(0, Math.min(raw, count)) }
   }
+
+  const hit = (e: MouseEvent): number => locate(e.clientX, e.clientY)?.index ?? -1
+
+  useImperativeHandle(handle, () => ({ hit: locate }))
 
   return (
     <div
@@ -125,6 +146,11 @@ export function CanvasGrid({
       onClick={(e) => {
         const i = hit(e)
         if (i >= 0) onCellClick?.(i, e)
+      }}
+      onPointerDown={(e) => {
+        if (e.button !== 0) return
+        const i = hit(e)
+        if (i >= 0) onCellPointerDown?.(i, e)
       }}
       onDoubleClick={(e) => {
         const i = hit(e)

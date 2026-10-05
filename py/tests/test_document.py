@@ -145,10 +145,31 @@ def test_rename_group_uses_remove(doc):
     assert out["delta"]["kerning"]["removed"] == [[K1, "V"]]
 
 
-def test_reposition_changes_key_glyph(doc):
+def move(group, glyphs, index) -> dict:
+    return json.loads(api.move_in_group(group, json.dumps(glyphs), index))
+
+
+def test_move_to_front_changes_key_glyph(doc):
     op("add_glyphs_to_group", group_name=K1, glyph_list=["Aacute"])
-    out = op("reposition_glyph_in_group", group_name=K1, target_index=0, glyph_list=["Aacute"])
+    out = move(K1, ["Aacute"], 0)
     assert out["delta"]["groups"]["changed"] == {K1: ["Aacute", "A"]}
+    assert out["delta"]["kerning"] == {"changed": [], "removed": []}
+
+
+def test_move_to_end_and_middle(doc):
+    op("add_glyphs_to_group", group_name=K1, glyph_list=["Aacute", "Adieresis", "B"])
+    assert move(K1, ["A"], 4)["delta"]["groups"]["changed"] == {K1: ["Aacute", "Adieresis", "B", "A"]}
+    # insert before the member now at index 1 (Adieresis); B moves along
+    assert move(K1, ["B"], 1)["delta"]["groups"]["changed"] == {K1: ["Aacute", "B", "Adieresis", "A"]}
+    # target is itself moved: falls through to the next kept member
+    assert move(K1, ["B", "Adieresis"], 1)["delta"]["groups"] == {"changed": {}, "removed": []}
+
+
+def test_delta_carries_lang_updates(doc):
+    out = op("remove_glyphs_from_group", group_name=K2, glyph_list=["A"])
+    lang = out["delta"]["lang"]
+    assert lang["set"] == []
+    assert ["T", "A"] in lang["clear"] and ["T", K2] in lang["clear"]
 
 
 # -- parity with a plain-dict font --------------------------------------------
@@ -197,8 +218,9 @@ def test_open_save_writes_nothing(doc):
 
 
 def test_edit_then_manual_revert_writes_nothing(doc):
-    op("add_glyphs_to_group", group_name=K1, glyph_list=["Aacute"])
-    op("remove_glyphs_from_group", group_name=K1, glyph_list=["Aacute"], check_kerning=False)
+    assert op("add_glyphs_to_group", group_name=K1, glyph_list=["Aacute"])["dirty"] is True
+    out = op("remove_glyphs_from_group", group_name=K1, glyph_list=["Aacute"], check_kerning=False)
+    assert out["dirty"] is False
     assert doc.changed_files() == {}
 
 

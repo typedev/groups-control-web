@@ -11,9 +11,9 @@ describe('classifyName', () => {
 })
 
 describe('shouldSkip', () => {
-  it('skips images, data and hidden files only', () => {
-    expect(shouldSkip('images/a.png')).toBe(true)
-    expect(shouldSkip('data/com.x/file')).toBe(true)
+  it('skips hidden files only', () => {
+    expect(shouldSkip('images/a.png')).toBe(false)
+    expect(shouldSkip('data/com.x/file')).toBe(false)
     expect(shouldSkip('.DS_Store')).toBe(true)
     expect(shouldSkip('glyphs/.hidden')).toBe(true)
     expect(shouldSkip('glyphs/A_.glif')).toBe(false)

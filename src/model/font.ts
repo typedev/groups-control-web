@@ -3,7 +3,7 @@
 import { GroupIndex, isKerningGroup, KerningTable, KERN1, KERN2, pairKey, resolveKernPair } from './kerning'
 import { OutlineCache } from './outlines'
 import { pyRound } from './pyround'
-import type { FontData, GlyphRecord, KerningEntry, LangStatus } from './types'
+import type { Delta, FontData, GlyphRecord, KerningEntry, LangEntry, LangStatus } from './types'
 
 export type SideId = 'kern1' | 'kern2'
 export const prefixOf = (side: SideId) => (side === 'kern1' ? KERN1 : KERN2)
@@ -39,10 +39,10 @@ export class FontModel {
   private sideCache = new Map<SideId, SideData>()
   private validation = new Map<string, GroupValidation>()
 
-  constructor(readonly data: FontData) {
+  constructor(readonly data: FontData, outlines?: OutlineCache) {
     this.index = new GroupIndex(data.groups)
     this.kerning = new KerningTable(data.kerning)
-    this.outlines = new OutlineCache(data.glyphs)
+    this.outlines = outlines ?? new OutlineCache(data.glyphs)
     this.glyphSet = new Set(data.order)
     data.kerning.forEach(([l, r], i) => {
       push(this.byLeft, l, i)
@@ -53,6 +53,35 @@ export class FontModel {
 
   get info() {
     return this.data.info
+  }
+
+  /**
+   * A new model with a worker delta applied. Dict order follows Python's:
+   * changed keys keep their place, new keys go to the end. Outlines are shared.
+   */
+  withDelta(delta: Delta): FontModel {
+    const groups = { ...this.data.groups }
+    for (const name of delta.groups.removed) delete groups[name]
+    Object.assign(groups, delta.groups.changed)
+
+    const removed = new Set(delta.kerning.removed.map(([l, r]) => pairKey(l, r)))
+    const changed = new Map(delta.kerning.changed.map((e) => [pairKey(e[0], e[1]), e]))
+    const kerning: KerningEntry[] = []
+    for (const entry of this.data.kerning) {
+      const key = pairKey(entry[0], entry[1])
+      if (removed.has(key)) continue
+      const update = changed.get(key)
+      kerning.push(update ?? entry)
+      changed.delete(key)
+    }
+    kerning.push(...changed.values())
+
+    const lang = new Map(this.data.lang.map((e) => [pairKey(e[0], e[1]), e]))
+    for (const [l, r] of delta.lang.clear) lang.delete(pairKey(l, r))
+    for (const e of delta.lang.set) lang.set(pairKey(e[0], e[1]), e)
+    const langList: LangEntry[] = [...lang.values()]
+
+    return new FontModel({ ...this.data, groups, kerning, lang: langList }, this.outlines)
   }
 
   glyph(name: string): GlyphRecord | undefined {

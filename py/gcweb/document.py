@@ -165,6 +165,16 @@ class UfoDocument:
             if data != self._baseline_bytes[name]
         }
 
+    def is_dirty(self) -> bool:
+        """Groups or kerning differ from the last open/save (cheap: no plist dump)."""
+        view = self.master
+        return dict(view.groups) != self._baseline_groups or dict(view.kerning) != self._baseline_kerning
+
+    def current_bytes(self, name: str) -> bytes | None:
+        """Content of groups.plist / kerning.plist for the current state."""
+        changed = self.changed_files()
+        return changed[name] if name in changed else self._baseline_bytes[name]
+
     def mark_saved(self, files: dict[str, bytes | None]) -> None:
         self._baseline_bytes.update(files)
         self._snapshot_baseline()

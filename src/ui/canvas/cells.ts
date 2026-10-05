@@ -11,6 +11,7 @@ export const GROUP_CELL = { w: 94, h: 110 }
 export const ACCENT = '#3380e6'
 const ERROR = '#ff0000'
 const MISSING_RED = '#e01b24'
+export const DROP_GREEN = '#33bf59'
 const GROUPED_MARK = '#8c8c8c'
 const KERNED_MARK = '#3585e3'
 const LABEL_FONT = '11px system-ui, sans-serif'
@@ -217,7 +218,7 @@ export function memberBadges(font: FontModel, group: string, side: SideId): (Con
 
 // -- groups grid -------------------------------------------------------------------
 
-export type GroupCellState = { selected: boolean; active: boolean }
+export type GroupCellState = { selected: boolean; active: boolean; dropHover?: boolean }
 
 export function drawGroupCell(
   ctx: CanvasRenderingContext2D,
@@ -307,6 +308,20 @@ export function drawGroupCell(
     }
   }
 
-  if (state.selected) selectionBorder(ctx, r)
+  if (state.dropHover) {
+    ctx.save()
+    ctx.strokeStyle = DROP_GREEN
+    ctx.lineWidth = 3
+    roundedRect(ctx, r, 8, 1.5)
+    ctx.stroke()
+    ctx.restore()
+  } else if (state.selected) selectionBorder(ctx, r)
   else if (state.active) selectionBorder(ctx, r, true)
+}
+
+/** Drop position marker: a bar at the left edge of a cell (or right edge of the last). */
+export function drawInsertBar(ctx: CanvasRenderingContext2D, r: CellRect, atEnd: boolean) {
+  ctx.fillStyle = ACCENT
+  const x = atEnd ? r.x + r.w - 2 : r.x
+  ctx.fillRect(x, r.y + 4, 3, r.h - 8)
 }

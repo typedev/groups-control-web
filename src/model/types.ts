@@ -43,3 +43,11 @@ export type FontData = {
   /** Kerning keys with a script/language problem; all others are fine. */
   lang: LangEntry[]
 }
+
+/** What one worker operation changed (py/gcweb/api.py _finish). */
+export type Delta = {
+  master: number
+  groups: { changed: Record<string, string[]>; removed: string[] }
+  kerning: { changed: KerningEntry[]; removed: [string, string][] }
+  lang: { set: LangEntry[]; clear: [string, string][] }
+}

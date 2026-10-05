@@ -1,5 +1,5 @@
 // Web Worker that owns Python (Pyodide) and every font mutation.
-import type { OpenInput, Request, Response, WorkerEvent } from './protocol'
+import type { OpenInput, Request, Response, SavedFile, WorkerEvent } from './protocol'
 
 const PYODIDE_VERSION = '314.0.7'
 const PYODIDE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`
@@ -20,6 +20,7 @@ type Pyodide = {
   FS: {
     mkdirTree(path: string): void
     writeFile(path: string, data: string | Uint8Array): void
+    readFile(path: string): Uint8Array
   }
   loadPackage(names: string[]): Promise<void>
   runPython(code: string): unknown
@@ -76,17 +77,59 @@ function open(input: OpenInput): unknown {
   return JSON.parse(api.open_font(`${FONT_ROOT}/${input.name}`))
 }
 
+const OUT_DIR = '/out'
+
+function changedFiles(): { value: SavedFile[]; transfer: Transferable[] } {
+  py.runPython(`import shutil; shutil.rmtree('${OUT_DIR}', ignore_errors=True)`)
+  const listed = JSON.parse(api.changed_files(OUT_DIR)) as { name: string; path: string | null }[]
+  const value = listed.map(({ name, path }) => ({
+    name,
+    bytes: path ? (py.FS.readFile(path).slice().buffer as ArrayBuffer) : null,
+  }))
+  return { value, transfer: value.flatMap((f) => (f.bytes ? [f.bytes] : [])) }
+}
+
+function buildUfoz(name: string): { value: ArrayBuffer; transfer: Transferable[] } {
+  py.runPython(`import shutil; shutil.rmtree('${OUT_DIR}', ignore_errors=True)`)
+  const { path } = JSON.parse(api.build_ufoz(`${OUT_DIR}/${name}`)) as { path: string }
+  const value = py.FS.readFile(path).slice().buffer as ArrayBuffer
+  return { value, transfer: [value] }
+}
+
+type Transferring = { value: unknown; transfer: Transferable[] }
+
 const handlers: Record<string, (...params: never[]) => unknown> = {
   open,
   fontData: () => JSON.parse(api.font_data()),
   close: () => JSON.parse(api.close_font()),
+  addGlyphs: (group: string, glyphs: string[], keep: boolean, index: number) =>
+    JSON.parse(api.add_glyphs(group, JSON.stringify(glyphs), keep, index)),
+  createGroup: (prefix: string, short: string, glyphs: string[], keep: boolean) =>
+    JSON.parse(api.create_group(prefix, short, JSON.stringify(glyphs), keep)),
+  removeGlyphs: (group: string, glyphs: string[], keep: boolean) =>
+    JSON.parse(api.remove_glyphs(group, JSON.stringify(glyphs), keep)),
+  deleteGroup: (group: string, keep: boolean) => JSON.parse(api.delete_group(group, keep)),
+  renameGroup: (group: string, short: string) => JSON.parse(api.rename_group(group, short)),
+  history: () => JSON.parse(api.history()),
+  setHistoryRecording: (on: boolean) => JSON.parse(api.set_history_recording(on)),
+  clearHistory: () => JSON.parse(api.clear_history()),
+  move: (group: string, glyphs: string[], index: number) =>
+    JSON.parse(api.move_in_group(group, JSON.stringify(glyphs), index)),
+  revert: () => JSON.parse(api.revert()),
+  changedFiles: (): Transferring => changedFiles(),
+  buildUfoz: (name: string): Transferring => buildUfoz(name),
+  markSaved: () => JSON.parse(api.mark_saved()),
 }
+
+const TRANSFERRING = new Set(['changedFiles', 'buildUfoz'])
 
 /** Python errors carry a full traceback; the UI gets the last line. */
 function describe(err: unknown): { error: string; detail?: string } {
   const text = err instanceof Error ? err.message : String(err)
   const lines = text.trim().split('\n')
-  return lines.length > 1 ? { error: lines[lines.length - 1], detail: text } : { error: text }
+  // "ValueError: Group 'O' already exists." → the message the user should read.
+  const last = lines[lines.length - 1].replace(/^(ValueError|RuntimeError): /, '')
+  return lines.length > 1 ? { error: last, detail: text } : { error: text }
 }
 
 const booted = boot().catch((err) => {
@@ -100,7 +143,11 @@ self.onmessage = async (e: MessageEvent<Request>) => {
     await booted
     const handler = handlers[method]
     if (!handler) throw new Error(`unknown method ${method}`)
-    post({ id, ok: true, result: handler(...(params as never[])) })
+    const out = handler(...(params as never[]))
+    if (TRANSFERRING.has(method)) {
+      const { value, transfer } = out as Transferring
+      self.postMessage({ id, ok: true, result: value } satisfies Response, { transfer })
+    } else post({ id, ok: true, result: out })
   } catch (err) {
     post({ id, ok: false, ...describe(err) })
   }

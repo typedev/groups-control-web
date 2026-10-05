@@ -121,3 +121,33 @@ describe('helpers', () => {
     expect(visibleInFontGrid('V', side, 'not_kerned', true)).toBe(true)
   })
 })
+
+describe('withDelta', () => {
+  it('applies group, kerning and lang changes in Python dict order', () => {
+    const font = new FontModel(data)
+    const next = font.withDelta({
+      master: 0,
+      groups: { changed: { 'public.kern1.O': ['O'], 'public.kern1.Q': ['Q'] }, removed: ['public.kern1.empty'] },
+      kerning: {
+        changed: [['B', 'V', -15], ['Q', 'public.kern2.V', -25]],
+        removed: [['Q', 'V']],
+      },
+      lang: { set: [['Q', 'public.kern2.V', 2, 'Mixed']], clear: [['B', 'V']] },
+    })
+    expect(Object.keys(next.data.groups)).toEqual([
+      'public.kern1.A', 'public.kern1.O', 'public.kern1.ghost', 'public.kern2.V', 'other', 'public.kern1.Q',
+    ])
+    expect(next.data.kerning).toEqual([
+      ['public.kern1.A', 'public.kern2.V', -80],
+      ['Aacute', 'public.kern2.V', -60],
+      ['B', 'V', -15],
+      ['public.kern1.O', 'public.kern2.V', -20],
+      ['Q', 'public.kern2.V', -25],
+    ])
+    expect(next.langOf('B', 'V')).toBeNull()
+    expect(next.langOf('Q', 'public.kern2.V')?.status).toBe(2)
+    expect(next.groupOf('Q', 'kern1')).toBe('public.kern1.Q')
+    expect(next.outlines).toBe(font.outlines)
+    expect(font.data.groups['public.kern1.O']).toEqual(['O', 'Q']) // old model untouched
+  })
+})

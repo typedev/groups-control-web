@@ -26,6 +26,15 @@ FILES = [
         ),
     ]),
     ("font_rover/languages/compat.py", "compat.py", []),
+    ("font_rover/groups_control/naming.py", "naming.py", []),
+    ("font_rover/groups_control/groups_history.py", "groups_history.py", []),
+    ("font_rover/groups_control/copy_groups.py", "copy_groups.py", [
+        # No processes in Pyodide; threads keep the API (and run serially there).
+        (
+            "from concurrent.futures import ProcessPoolExecutor, as_completed",
+            "from concurrent.futures import ThreadPoolExecutor as ProcessPoolExecutor, as_completed",
+        ),
+    ]),
 ]
 DATA = [("font_rover/data/language_charsets.json", "language_charsets.json")]
 

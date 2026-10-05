@@ -1,5 +1,5 @@
 // Messages between the main thread and the Python worker.
-import type { FontData } from '../model/types'
+import type { Delta, FontData } from '../model/types'
 
 /** A file of the font being opened, path relative to the drop root. */
 export type FontFile = { path: string; bytes: ArrayBuffer }
@@ -25,11 +25,36 @@ export type FontSummary = {
   readOnlyReason: string | null
 }
 
+export type OpResult<R = unknown> = { result: R; delta: Delta; dirty: boolean }
+
+/** Glyphs refused because they are already in a group on this side: [glyph, group]. */
+export type Refused = [glyph: string, group: string][]
+
+export type HistoryState = { text: string; count: number; recording: boolean }
+
+/** A file to write into the opened folder; bytes null = delete it. */
+export type SavedFile = { name: string; bytes: ArrayBuffer | null }
+
 /** RPC methods: params → result. */
 export type Api = {
   open: (input: OpenInput) => FontSummary
   fontData: () => FontData
   close: () => null
+  addGlyphs: (group: string, glyphs: string[], keepKerning: boolean, index: number) => OpResult<{ added: string[]; grouped: Refused }>
+  createGroup: (prefix: string, shortName: string, glyphs: string[], keepKerning: boolean) => OpResult<{ group: string | null; added: string[]; grouped: Refused }>
+  removeGlyphs: (group: string, glyphs: string[], keepKerning: boolean) => OpResult<{ removed: string[] }>
+  deleteGroup: (group: string, keepKerning: boolean) => OpResult<null>
+  renameGroup: (group: string, newShortName: string) => OpResult<{ group: string }>
+  move: (group: string, glyphs: string[], index: number) => OpResult<null>
+  revert: () => Delta
+  history: () => HistoryState
+  setHistoryRecording: (on: boolean) => HistoryState
+  clearHistory: () => HistoryState
+  /** Changed plists for writing back into the folder; then call markSaved. */
+  changedFiles: () => SavedFile[]
+  /** The whole font as .ufoz bytes; then call markSaved. */
+  buildUfoz: (name: string) => ArrayBuffer
+  markSaved: () => null
 }
 
 export type Method = keyof Api
