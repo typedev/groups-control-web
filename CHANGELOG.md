@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Margin editing (Phase 6, see docs/RESEARCH_MARGINS.md): click a glyph in
+  the dependency line; arrows change the right margin, Alt+arrows the left,
+  Shift ×10 (desktop keys). Composites follow their base glyph (recursively);
+  an edited accent keeps its place in composites. Edited glyphs are saved by
+  patching the GLIF text in place, so only the changed numbers differ
+  (verified against ufoLib2 on 2.5k open-source glyphs). Revert to file
+  restores glyphs too. Fonts with metrics rules show "metrics rules ignored".
 - Session and exchange (Phase 5): autosave of unsaved edits in this browser
   (IndexedDB: the opened files, groups, kerning, history and the folder
   handle) with Restore / Discard on the start screen; Import groups from a

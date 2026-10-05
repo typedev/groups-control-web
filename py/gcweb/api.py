@@ -14,9 +14,9 @@ import zipfile
 
 from ufo_spacing_lib.groups_core import FontGroupsManager
 
-from gcweb.document import GROUPS_FILE, KERNING_FILE, UfoDocument
+from gcweb.document import UfoDocument
 from gcweb.document import delta as delta_of
-from gcweb.export import font_payload
+from gcweb.export import font_payload, glyph_record
 from gcweb.lang import LangChecker
 from gcweb.preview import KernEdit, dependency_line, pair_rows
 from gcweb.fr_font import FRFont
@@ -374,7 +374,22 @@ def revert() -> str:
     delta = doc.revert()
     _manager.makeReverseGroupsMapping()
     delta["lang"] = _lang_update(delta)
+    names = doc.glyph_edits.revert()
+    if names:
+        delta["glyphs"] = {n: glyph_record(doc, n) for n in names}
     return json.dumps(delta)
+
+
+def margin_nudge(name: str, side: str, delta: float) -> str:
+    """Desktop arrow-key margin edit of one glyph; composites follow."""
+    doc = _require()
+    if doc.read_only_reason:
+        raise RuntimeError(doc.read_only_reason)
+    changed = doc.glyph_edits.nudge(name, side, delta)
+    out = doc.take_delta()
+    out["lang"] = {"set": [], "clear": []}
+    out["glyphs"] = {n: glyph_record(doc, n) for n in changed}
+    return json.dumps({"result": {"changed": changed}, "delta": out, "dirty": doc.is_dirty()})
 
 
 # -- saving ---------------------------------------------------------------------
@@ -401,6 +416,7 @@ def changed_files(out_dir: str) -> str:
         path = None
         if data is not None:
             path = os.path.join(out_dir, name)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, "wb") as f:
                 f.write(data)
         out.append({"name": name, "path": path})
@@ -417,7 +433,7 @@ def build_ufoz(out_path: str) -> str:
     doc = _require()
     _check_writable(doc)
     _pending_save = doc.changed_files()
-    current = {name: doc.current_bytes(name) for name in (GROUPS_FILE, KERNING_FILE)}
+    current = doc.current_files()
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as out:
         if zipfile.is_zipfile(doc.path):

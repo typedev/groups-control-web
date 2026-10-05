@@ -15,13 +15,18 @@ export async function writeToFolder(handle: FileSystemDirectoryHandle, files: Sa
     }
   }
   for (const file of files) {
+    // Paths are UFO-relative ("groups.plist", "glyphs/A_.glif").
+    const parts = file.name.split('/')
+    const leaf = parts.pop()!
+    let dir = handle
+    for (const part of parts) dir = await dir.getDirectoryHandle(part)
     if (file.bytes) {
-      const fh = await handle.getFileHandle(file.name, { create: true })
+      const fh = await dir.getFileHandle(leaf, { create: true })
       const writable = await fh.createWritable()
       await writable.write(file.bytes)
       await writable.close()
     } else {
-      await handle.removeEntry(file.name).catch((e: DOMException) => {
+      await dir.removeEntry(leaf).catch((e: DOMException) => {
         if (e.name !== 'NotFoundError') throw e
       })
     }

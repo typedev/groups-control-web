@@ -264,7 +264,7 @@ Phase 6.
 OPFS autosave/restore, Import/Export groups (consider a Merge mode), History
 Save/Load.
 
-### Phase 6 — Margins (research first)
+### Phase 6 — Margins (research first) — done, see RESEARCH_MARGINS.md; beam still open
 Write `docs/RESEARCH_MARGINS.md` before code:
 - plain outline shift + advance; optional metrics rules in
   `font.lib["com.typedev.spacing.metricsRules"]`

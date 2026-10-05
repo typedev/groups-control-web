@@ -150,4 +150,20 @@ describe('withDelta', () => {
     expect(next.outlines).toBe(font.outlines)
     expect(font.data.groups['public.kern1.O']).toEqual(['O', 'Q']) // old model untouched
   })
+
+  it('replaces glyph records and rebuilds outlines', () => {
+    const font = new FontModel(data)
+    const empty = { set: [], clear: [] }
+    const next = font.withDelta({
+      master: 0,
+      groups: { changed: {}, removed: [] },
+      kerning: { changed: [], removed: [] },
+      lang: empty,
+      glyphs: { O: { u: [79], w: 510, l: 50, r: 40, p: [] } },
+    })
+    expect(next.glyph('O')?.l).toBe(50)
+    expect(next.validate('public.kern1.O', 'kern1').keyMargin).toBe(40)
+    expect(next.outlines).not.toBe(font.outlines)
+    expect(font.glyph('O')?.l).toBe(40)
+  })
 })

@@ -50,4 +50,6 @@ export type Delta = {
   groups: { changed: Record<string, string[]>; removed: string[] }
   kerning: { changed: KerningEntry[]; removed: [string, string][] }
   lang: { set: LangEntry[]; clear: [string, string][] }
+  /** Glyphs whose outline or metrics changed (margin edits, revert). */
+  glyphs?: Record<string, GlyphRecord>
 }

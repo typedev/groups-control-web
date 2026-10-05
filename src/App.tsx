@@ -212,6 +212,14 @@ export function App() {
                 read-only
               </span>
             )}
+            {font.summary.hasMetricsRules && (
+              <span
+                className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
+                title="This font has linked-sidebearing rules (com.typedev.spacing.metricsRules). They are not applied here: margin edits do not update the glyphs that depend on them."
+              >
+                metrics rules ignored
+              </span>
+            )}
             {status && <span className="text-xs text-zinc-500">{status}</span>}
             <span className="ml-auto text-xs text-zinc-500 tabular-nums">{stats}</span>
             <button type="button" className={headerButton} disabled={readOnly || !font.dirty} onClick={revert}>

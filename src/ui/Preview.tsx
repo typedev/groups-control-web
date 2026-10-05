@@ -116,6 +116,8 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
   const [selection, setSelection] = useState<[number, number] | null>(null)
   const [selectedNames, setSelectedNames] = useState<[string, string] | null>(null)
   const [hint, setHint] = useState<string | null>(null)
+  /** Dependency line: the selected glyph (margin editing). */
+  const [glyphSel, setGlyphSel] = useState<{ row: number; index: number; name: string } | null>(null)
 
   const scroller = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -149,6 +151,7 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
   useEffect(() => {
     setSelection(null)
     setSelectedNames(null)
+    setGlyphSel(null)
     setHint(null)
   }, [subjectKey])
 
@@ -200,6 +203,17 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
     if (!selectedNames || names[0] !== selectedNames[0] || names[1] !== selectedNames[1]) setSelectedNames(names)
   }, [stops, layout.rows, pairsMode, selection, selectedNames])
 
+  // The selected glyph survives edits and re-wrapping (found again by name).
+  useEffect(() => {
+    if (!glyphSel || pairsMode) return
+    if (layout.rows[glyphSel.row]?.[glyphSel.index]?.n === glyphSel.name) return
+    for (let r = 0; r < layout.rows.length; r++) {
+      const i = layout.rows[r].findIndex((t) => t.n === glyphSel.name)
+      if (i >= 0) return setGlyphSel({ row: r, index: i, name: glyphSel.name })
+    }
+    setGlyphSel(null)
+  }, [layout.rows, glyphSel, pairsMode])
+
   // -- painting -----------------------------------------------------------------------
   useLayoutEffect(() => {
     const el = scroller.current
@@ -239,6 +253,14 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
         ctx.fillRect(x0, top, x1 - x0, rowHeight - 4)
       }
 
+      if (!pairsMode && glyphSel && glyphSel.row === r) {
+        const g = font.glyph(row[glyphSel.index]?.n)
+        if (g) {
+          ctx.fillStyle = SELECT
+          ctx.fillRect(xs[r][glyphSel.index], top, g.w * scale, rowHeight - 4)
+        }
+      }
+
       row.forEach((t, i) => {
         const g = font.glyph(t.n)
         if (!g) return
@@ -270,14 +292,16 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
           ctx.fill()
         }
         row.forEach((t, i) => {
-          if (t.ctx) return
+          const selected = !pairsMode && glyphSel?.row === r && glyphSel.index === i
+          if (t.ctx && !selected) return
           const g = font.glyph(t.n)
           if (!g) return
           const x = xs[r][i]
           const right = x + g.w * scale
+          const both = pairsMode || selected
           ctx.fillStyle = !pairsMode && t.x ? colors.mismatchLabel : colors.label
-          if (pairsMode || side === 'kern1') {
-            const m = pairsMode ? g.r : t.g ?? null
+          if (both || side === 'kern1') {
+            const m = both ? g.r : t.g ?? null
             if (m !== null) {
               const text = String(pyRound(m))
               triangle(right - tri, y - size / 3, true)
@@ -285,8 +309,8 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
               ctx.fillText(text, right - tri * 1.5 - gap, y)
             }
           }
-          if (pairsMode || side === 'kern2') {
-            const m = pairsMode ? g.l : t.g ?? null
+          if (both || side === 'kern2') {
+            const m = both ? g.l : t.g ?? null
             if (m !== null) {
               const ly = y + size + 3
               triangle(x + tri, ly - size / 3, false)
@@ -338,7 +362,7 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
         })
       }
     }
-  }, [view, layout, colors, font, pairsMode, selection, showMargins, showNames, side])
+  }, [view, layout, colors, font, pairsMode, selection, glyphSel, showMargins, showNames, side])
 
   useEffect(() => {
     const id = requestAnimationFrame(paint)
@@ -361,7 +385,15 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
   }
 
   const keys: PreviewKeys = (e) => {
-    if (!pairsMode) return false
+    if (!pairsMode) {
+      // glyph_line/keys.py MARGIN_ACTIONS: arrows = right margin, Alt = left, Shift ×10.
+      if (e.code === 'Escape') return setGlyphSel(null), true
+      if (!glyphSel || readOnly || (e.code !== 'ArrowLeft' && e.code !== 'ArrowRight')) return false
+      const step = e.shiftKey ? 10 : 1
+      const delta = e.code === 'ArrowLeft' ? -step : step
+      void run(() => python.call('marginNudge', [glyphSel.name, e.altKey ? 'left' : 'right', delta]))
+      return true
+    }
     const pair = selectedPair()
     const code = e.code
     if (code === 'KeyZ' && !e.ctrlKey && !e.metaKey) return moveSelection(-1), true
@@ -437,6 +469,10 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
         (isExpanded ? ' · E: exception (Alt: glyph–glyph, Ctrl: other side)' : '')
       )
     }
+    if (glyphSel) {
+      const g = font.glyph(glyphSel.name)
+      return `${glyphSel.name} · L ${g?.l === null || !g ? '–' : pyRound(g.l)} R ${g?.r === null || !g ? '–' : pyRound(g.r)} W ${g ? pyRound(g.w) : '–'} · arrows: right margin, Alt: left margin, Shift: ×10 · Esc: deselect`
+    }
     const extra = tokens.filter((t) => !t.m).length
     const differ = tokens.filter((t) => t.x).length
     const angled = font.info.italicAngle ? ' (angled)' : ''
@@ -446,15 +482,26 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
       ` · checking the ${side === 'kern1' ? 'right' : 'left'} side${angled}` +
       (differ ? ` · ${differ} differ${differ === 1 ? 's' : ''} from the key glyph` : '')
     )
-  }, [input, tokens, stops, isExpanded, side, font])
+  }, [input, tokens, stops, isExpanded, side, font, glyphSel])
 
   const onClick = (e: React.MouseEvent) => {
-    if (!pairsMode || !stops.length) return
     const el = scroller.current!
     const box = el.getBoundingClientRect()
     const x = e.clientX - box.left + el.scrollLeft
     const y = e.clientY - box.top + el.scrollTop
     const r = Math.max(0, Math.min(layout.rows.length - 1, Math.floor((y - PAD / 2) / layout.rowHeight)))
+    if (!pairsMode) {
+      const row = layout.rows[r]
+      if (!row) return
+      const i = row.findIndex((t, k) => {
+        const w = (font.glyph(t.n)?.w ?? 0) * layout.scale
+        return x >= layout.xs[r][k] && x < layout.xs[r][k] + w
+      })
+      setGlyphSel(i >= 0 ? { row: r, index: i, name: row[i].n } : null)
+      el.focus()
+      return
+    }
+    if (!stops.length) return
     const inRow = stops.filter(([sr]) => sr === r)
     if (!inRow.length) return
     const best = inRow.reduce((a, b) => (Math.abs(layout.xs[r][b[1] + 1] - x) < Math.abs(layout.xs[r][a[1] + 1] - x) ? b : a))

@@ -81,7 +81,10 @@ export class FontModel {
     for (const e of delta.lang.set) lang.set(pairKey(e[0], e[1]), e)
     const langList: LangEntry[] = [...lang.values()]
 
-    return new FontModel({ ...this.data, groups, kerning, lang: langList }, this.outlines)
+    // A changed glyph also changes every composite drawn from it: drop the cache.
+    const glyphs = delta.glyphs ? { ...this.data.glyphs, ...delta.glyphs } : this.data.glyphs
+    const outlines = delta.glyphs && Object.keys(delta.glyphs).length ? undefined : this.outlines
+    return new FontModel({ ...this.data, glyphs, groups, kerning, lang: langList }, outlines)
   }
 
   glyph(name: string): GlyphRecord | undefined {

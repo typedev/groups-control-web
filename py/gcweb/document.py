@@ -11,6 +11,7 @@ from typing import Any
 
 import ufoLib2
 
+from gcweb.margins import GlyphEdits
 from gcweb.plist_style import PlistStyle
 from gcweb.tracked import TrackedGroups, TrackedKerning
 
@@ -81,6 +82,7 @@ class UfoDocument:
             for name in (GROUPS_FILE, KERNING_FILE)
         }
         self.masters = [MasterView(font)]
+        self.glyph_edits = GlyphEdits(font)
         self._snapshot_baseline()
 
     @property
@@ -131,6 +133,8 @@ class UfoDocument:
             ),
             "pairs": len(self.master.kerning),
             "readOnlyReason": self.read_only_reason,
+            # Font-Rover ignores them too (docs/RESEARCH_MARGINS.md decision 2).
+            "hasMetricsRules": "com.typedev.spacing.metricsRules" in self.ufo.lib,
         }
 
     # -- changes --------------------------------------------------------------
@@ -158,22 +162,36 @@ class UfoDocument:
         if dict(view.kerning) != self._baseline_kerning:
             style = PlistStyle.from_bytes(self._baseline_bytes[KERNING_FILE])
             files[KERNING_FILE] = kerning_bytes(view.kerning, style)
-        return {
+        plists = {
             name: data
             for name, data in files.items()
             if data != self._baseline_bytes[name]
         }
+        return {**plists, **self.glyph_edits.changed()}
 
     def is_dirty(self) -> bool:
         """Groups or kerning differ from the last open/save (cheap: no plist dump)."""
         view = self.master
-        return dict(view.groups) != self._baseline_groups or dict(view.kerning) != self._baseline_kerning
+        return (
+            dict(view.groups) != self._baseline_groups
+            or dict(view.kerning) != self._baseline_kerning
+            or self.glyph_edits.dirty()
+        )
 
     def current_bytes(self, name: str) -> bytes | None:
         """Content of groups.plist / kerning.plist for the current state."""
         changed = self.changed_files()
         return changed[name] if name in changed else self._baseline_bytes[name]
 
+    def current_files(self) -> dict[str, bytes | None]:
+        """Every file whose content is ours: the two plists and edited glyphs."""
+        return {
+            GROUPS_FILE: self.current_bytes(GROUPS_FILE),
+            KERNING_FILE: self.current_bytes(KERNING_FILE),
+            **self.glyph_edits.changed(),
+        }
+
     def mark_saved(self, files: dict[str, bytes | None]) -> None:
-        self._baseline_bytes.update(files)
+        self._baseline_bytes.update({k: v for k, v in files.items() if k in (GROUPS_FILE, KERNING_FILE)})
         self._snapshot_baseline()
+        self.glyph_edits.mark_saved()

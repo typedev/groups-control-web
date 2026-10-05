@@ -24,6 +24,8 @@ export type FontSummary = {
   pairs: number
   /** Set when the font can be viewed but not saved (e.g. UFO 2). */
   readOnlyReason: string | null
+  /** The font carries com.typedev.spacing.metricsRules (ignored). */
+  hasMetricsRules: boolean
 }
 
 export type OpResult<R = unknown> = { result: R; delta: Delta; dirty: boolean }
@@ -55,6 +57,7 @@ export type Api = {
   revert: () => Delta
   previewLine: (subject: PreviewSubject) => PreviewToken[]
   previewPairs: (pairs: [string, string][], expanded: boolean, perRow: number) => PreviewToken[][]
+  marginNudge: (glyph: string, side: 'left' | 'right', delta: number) => OpResult<{ changed: string[] }>
   kernNudge: (left: string, right: string, delta: number) => OpResult<{ key: [string, string] }>
   kernRemove: (left: string, right: string) => OpResult<{ key: [string, string] | null }>
   kernException: (left: string, right: string, side: 'left' | 'right' | 'both') => OpResult<{ key: [string, string] }>

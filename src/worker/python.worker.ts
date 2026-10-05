@@ -114,6 +114,7 @@ const handlers: Record<string, (...params: never[]) => unknown> = {
   previewLine: (subject: unknown) => JSON.parse(api.preview_line(JSON.stringify(subject))),
   previewPairs: (pairs: unknown, expanded: boolean, perRow: number) =>
     JSON.parse(api.preview_pairs(JSON.stringify(pairs), expanded, perRow)),
+  marginNudge: (g: string, side: string, delta: number) => JSON.parse(api.margin_nudge(g, side, delta)),
   kernNudge: (l: string, r: string, delta: number) => JSON.parse(api.kern_nudge(l, r, delta)),
   kernRemove: (l: string, r: string) => JSON.parse(api.kern_remove(l, r)),
   kernException: (l: string, r: string, side: string) => JSON.parse(api.kern_exception(l, r, side)),
