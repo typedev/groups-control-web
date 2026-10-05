@@ -110,7 +110,7 @@ export function ToolDialog({ tool, readOnly, hasSelectedGroup, onPlan, onApply, 
           </div>
         )}
 
-        {error && <p role="alert" className="mt-3 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950/50 dark:text-red-200">{error}</p>}
+        {error && <p role="alert" className="mt-3 rounded-lg bg-error-soft px-3 py-2 text-[13px] text-error">{error}</p>}
 
         {plan && (
           <pre className="mt-4 min-h-24 flex-1 overflow-auto rounded-md bg-raised p-3 font-mono text-xs leading-snug">
@@ -127,7 +127,7 @@ export function ToolDialog({ tool, readOnly, hasSelectedGroup, onPlan, onApply, 
               {plan ? 'Check again' : 'Show plan'}
             </button>
           ) : (
-            <button ref={first} type="button" disabled={busy || readOnly} className={`${button} bg-red-600 text-white hover:bg-red-500 disabled:opacity-50`} onClick={apply}>
+            <button ref={first} type="button" disabled={busy || readOnly} className={`${button} bg-danger text-white hover:brightness-110 disabled:opacity-50`} onClick={apply}>
               Apply
             </button>
           )}

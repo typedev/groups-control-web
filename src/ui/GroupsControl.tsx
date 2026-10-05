@@ -29,15 +29,13 @@ import {
   FONT_CELL,
   GROUP_CELL,
   memberBadges,
-  themeFor,
 } from './canvas/cells'
 import type { DialogSpec } from './Dialog'
 import { HistoryPanel } from './HistoryPanel'
 import { PairsList } from './PairsList'
 import { Preview, type PreviewInput, type PreviewKeys } from './Preview'
 import { Splitter } from './Splitter'
-import { useDark } from './useDark'
-import { useAccentColor } from '../theme'
+import { usePalette } from './palette'
 
 type Source = 'font' | 'groups' | 'pairs'
 type Ask = (spec: Omit<DialogSpec, 'onClose'>) => Promise<{ value: string | null; input: string }>
@@ -74,7 +72,7 @@ function Column({ active, drop, children, className = '' }: { active: boolean; d
     <section
       className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border bg-surface transition-[border-color,box-shadow] ${
         drop
-          ? 'border-[#33bf59] shadow-[0_0_0_1px_#33bf59]'
+          ? 'border-drop shadow-[0_0_0_1px_var(--c-drop)]'
           : active
             ? 'border-accent shadow-[0_0_0_1px_var(--c-accent)]'
             : 'border-line'
@@ -114,9 +112,7 @@ type DropTarget =
 type Drag = { source: DragSource; names: string[]; x0: number; y0: number; active: boolean; x: number; y: number }
 
 export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: Props) {
-  const dark = useDark()
-  const accentColor = useAccentColor()
-  const theme = useMemo(() => themeFor(dark, accentColor), [dark, accentColor])
+  const theme = usePalette()
   const [side, setSide] = useState<SideId>('kern1')
   const sideData = font.side(side)
   const prefix = prefixOf(side)
@@ -558,7 +554,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
         selected: group === selectedGroup && source === 'groups',
         active: group === activeGroup,
         dropHover: i === groupHover,
-      }, theme.accent)
+      }, theme)
     },
     [font, sideData, side, selectedGroup, activeGroup, source, groupHover, theme],
   )

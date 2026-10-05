@@ -6,11 +6,17 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
-- Appearance menu in the header: theme (system, light, dark) and one of five
-  accent colours (blue, teal, violet, rose, graphite), each tuned for both
+- Appearance menu in the header: theme (system, light, dark) and one of seven
+  accent colours (sky, blue, teal, violet, plum, rose, graphite), each tuned for both
   themes; kept per browser; canvases follow it too.
 
 ### Changed
+- Every colour now comes from the theme: CSS tokens for light and dark
+  (including kerning value, error, drop and cell colours) and the accent;
+  canvases read them through one palette. Group cells follow the theme (dark
+  cells in the dark theme, white cells on grey panels in the light theme)
+  and mark the side half with even, wide diagonal hatching. The kerned mark, non-member glyphs in the dependency line and the
+  `@.` markers use the accent.
 - Refreshed UI: IBM Plex Sans (bundled, no font requests), one set of theme
   tokens, 32 px controls with segmented switches and menus, panels as cards,
   thin scrollbars. Keep Kerning moved to the front of the toolbar as a large

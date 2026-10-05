@@ -107,7 +107,7 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
         )}
 
         {error && (
-          <p role="alert" className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm text-red-800 dark:bg-red-950/50 dark:text-red-200">
+          <p role="alert" className="mt-4 rounded-lg bg-error-soft px-3 py-2 text-[13px] text-error">
             {error}
           </p>
         )}
@@ -128,7 +128,7 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
 function RuntimeStatus({ runtime }: { runtime: RuntimeState }) {
   if (runtime.status === 'failed') {
     return (
-      <p role="alert" className="mt-4 text-sm text-red-700 dark:text-red-300">
+      <p role="alert" className="mt-4 text-[13px] text-error">
         Python failed to start: {runtime.error}. Check the connection and reload the page.
       </p>
     )

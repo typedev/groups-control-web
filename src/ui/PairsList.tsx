@@ -7,7 +7,7 @@ import { sortPairRows, type PairRow, type PairSort, type PairSortColumn } from '
 const ROW = 26
 
 const valueClass = (v: number) =>
-  v < 0 ? 'text-red-600 dark:text-[#ff6b6b]' : v > 0 ? 'text-green-700 dark:text-[#69db7c]' : 'text-orange-600 dark:text-[#ffd43b]'
+  v < 0 ? 'text-negative' : v > 0 ? 'text-positive' : 'text-zero'
 
 function Bolt({ x }: { x: number }) {
   return <path d={`M${x + 4} 1 L${x} 8 H${x + 3} L${x + 2} 13 L${x + 7} 5 H${x + 4} L${x + 5} 1 Z`} fill="currentColor" />
@@ -175,7 +175,7 @@ export function PairsList({ rows, selected, onSelect, onFocus, onDelete, onEditK
                   <ExcMarker type={r.exception} />
                 </div>
                 <div
-                  className={`w-12 text-center font-bold ${r.lang?.status === 1 ? 'text-orange-600 dark:text-[#ffd43b]' : 'text-red-600 dark:text-[#ff6b6b]'}`}
+                  className={`w-12 text-center font-bold ${r.lang?.status === 1 ? 'text-careful' : 'text-error'}`}
                   title={r.lang?.note}
                 >
                   {r.lang ? LANG_MARK[r.lang.status] : ''}

@@ -10,11 +10,11 @@
  * their own red / green / orange.
  */
 :root {
-  --c-canvas: #e9ebef;   /* behind the panels */
-  --c-surface: #ffffff;  /* panels, dialogs */
-  --c-raised: #f4f5f7;   /* toolbars, headers, inputs at rest */
-  --c-line: #d6d9df;
-  --c-line-strong: #b9bec8;
+  --c-canvas: #e1e4e9;   /* behind the panels */
+  --c-surface: #f1f2f4;  /* panels, dialogs */
+  --c-raised: #e7e9ed;   /* toolbars, headers, segmented tracks */
+  --c-line: #d2d6dd;
+  --c-line-strong: #b5bbc5;
   --c-ink: #1b1d22;
   --c-muted: #646b78;
   --c-accent: #3348d6;
@@ -23,6 +23,27 @@
   --c-careful: #b45309;
   --c-careful-soft: #fdf1e2;
   --c-scroll: #c3c7cf;
+
+  /* Meaning colours: kerning values, errors (not tied to the accent). */
+  --c-negative: #cf222e;
+  --c-positive: #1a7f37;
+  --c-zero: #bc4c00;
+  --c-error: #cf222e;
+  --c-error-soft: #fde8ea;
+  --c-error-glyph: #8f1d2c;
+  --c-drop: #2da44e;
+  --c-danger: #cf222e;
+
+  /* Glyph and group cells, preview. */
+  --c-cell: #ffffff;          /* glyph cells: white on grey panels */
+  --c-group-cell: #ffffff;
+  --c-cell-side: #e9ecf1;
+  --c-cell-hatch: rgba(27, 29, 34, 0.055);
+  --c-glyph: #000000;
+  --c-glyph-label: rgba(27, 29, 34, 0.7);
+  --c-badge: #3a3f48;
+  --c-grouped-mark: #8c929c;
+  --c-label: rgba(27, 29, 34, 0.55);
 }
 
 .dark {
@@ -39,6 +60,25 @@
   --c-careful: #f0a54a;
   --c-careful-soft: #3a2a16;
   --c-scroll: #464b56;
+
+  --c-negative: #ff6b6b;
+  --c-positive: #69db7c;
+  --c-zero: #ffd43b;
+  --c-error: #ff7b72;
+  --c-error-soft: #3d1b1e;
+  --c-error-glyph: #f0605a;
+  --c-drop: #3fb950;
+  --c-danger: #da3633;
+
+  --c-cell: #252830;
+  --c-group-cell: #1f2228;
+  --c-cell-side: #2b2f38;
+  --c-cell-hatch: rgba(255, 255, 255, 0.045);
+  --c-glyph: #eceef1;
+  --c-glyph-label: rgba(231, 232, 235, 0.72);
+  --c-badge: #c4c8d0;
+  --c-grouped-mark: #6e7581;
+  --c-label: rgba(231, 232, 235, 0.55);
 }
 
 @theme inline {
@@ -55,6 +95,13 @@
   --color-accent-soft: var(--c-accent-soft);
   --color-careful: var(--c-careful);
   --color-careful-soft: var(--c-careful-soft);
+  --color-negative: var(--c-negative);
+  --color-positive: var(--c-positive);
+  --color-zero: var(--c-zero);
+  --color-error: var(--c-error);
+  --color-error-soft: var(--c-error-soft);
+  --color-danger: var(--c-danger);
+  --color-drop: var(--c-drop);
 }
 
 html {

@@ -7,7 +7,7 @@ type Variant = 'default' | 'primary' | 'danger' | 'ghost'
 const VARIANT: Record<Variant, string> = {
   default: 'border border-line bg-surface text-ink hover:border-line-strong hover:bg-raised',
   primary: 'border border-transparent bg-accent text-accent-ink hover:brightness-110',
-  danger: 'border border-transparent bg-red-600 text-white hover:bg-red-500',
+  danger: 'border border-transparent bg-danger text-white hover:brightness-110',
   ghost: 'border border-transparent text-ink hover:bg-raised',
 }
 
@@ -301,7 +301,7 @@ export function AppearanceMenu() {
         <span aria-hidden className="size-3 rounded-full bg-accent ring-2 ring-accent-soft" />
       </Button>
       {open && (
-        <div role="dialog" aria-label="Appearance" className="absolute right-0 top-full z-40 mt-1.5 w-64 rounded-xl border border-line bg-surface p-3 shadow-xl">
+        <div role="dialog" aria-label="Appearance" className="absolute right-0 top-full z-40 mt-1.5 w-72 rounded-xl border border-line bg-surface p-3 shadow-xl">
           <div className="mb-1.5 text-xs font-medium text-muted">Theme</div>
           <Segmented<ThemeChoice>
             label="Theme"
@@ -326,7 +326,7 @@ export function AppearanceMenu() {
                   aria-label={ACCENTS[key].name}
                   title={ACCENTS[key].name}
                   onClick={() => setAccent(key)}
-                  className={`size-8 rounded-full transition-transform hover:scale-110 ${accent === key ? 'ring-2 ring-ink ring-offset-2 ring-offset-surface' : ''}`}
+                  className={`size-7 rounded-full transition-transform hover:scale-110 ${accent === key ? 'ring-2 ring-ink ring-offset-2 ring-offset-surface' : ''}`}
                   style={{ background: tone.accent }}
                 />
               )

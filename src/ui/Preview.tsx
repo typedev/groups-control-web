@@ -8,7 +8,7 @@ import { pyRound } from '../model/pyround'
 import { python } from '../runtime'
 import type { Run } from './GroupsControl'
 import { useDark } from './useDark'
-import { useAccentColor } from '../theme'
+import { usePalette, withAlpha } from './palette'
 import { Check, Segmented, TextInput } from './controls'
 
 export type PreviewInput =
@@ -32,19 +32,6 @@ const PAD = 16
 const KERN_ROW = 30
 /** Two label lines: right margin, then left margin. */
 const MARGIN_ROW = 26
-
-const COLORS = {
-  light: { text: '#000000', bg: '#ffffff', mismatch: 'rgb(115,10,26)', mismatchLabel: 'rgb(230,38,38)', label: 'rgba(0,0,0,0.55)' },
-  dark: { text: '#ffffff', bg: '#1b1d23', mismatch: 'rgb(199,46,51)', mismatchLabel: 'rgb(255,179,179)', label: 'rgba(255,255,255,0.55)' },
-}
-const NON_MEMBER = 'rgb(64,128,230)'
-const KERN_NEG = 'rgba(230,51,51,0.9)'
-const KERN_POS = 'rgba(51,179,51,0.9)'
-/** The accent as a translucent fill for the selected pair / glyph. */
-const tint = (hex: string, alpha: number) => {
-  const n = parseInt(hex.slice(1), 16)
-  return `rgba(${n >> 16},${(n >> 8) & 255},${n & 255},${alpha})`
-}
 
 /** Bolt in a unit box, y down (glyph_line/kerning_markers.py). */
 function bolt(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
@@ -110,8 +97,7 @@ type Layout = {
 
 export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
   const dark = useDark()
-  const colors = dark ? COLORS.dark : COLORS.light
-  const accentColor = useAccentColor()
+  const p = usePalette()
   const [mode, setMode] = useState<ChainMode>('smart')
   const [expanded, setExpanded] = useState(false)
   const [perRow, setPerRow] = useState(8)
@@ -240,7 +226,7 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
     cv.height = Math.round(view.h * dpr)
     const ctx = cv.getContext('2d')!
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-    ctx.fillStyle = colors.bg
+    ctx.fillStyle = p.surface
     ctx.fillRect(0, 0, view.w, view.h)
     ctx.translate(-view.left, -view.top)
     const { rows, xs, kerns, rowHeight, ascent, scale } = layout
@@ -256,14 +242,14 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
         const i = selection[1]
         const x0 = xs[r][i]
         const x1 = xs[r][i + 1] + (font.glyph(row[i + 1].n)?.w ?? 0) * scale
-        ctx.fillStyle = tint(accentColor, dark ? 0.2 : 0.13)
+        ctx.fillStyle = withAlpha(p.accent, dark ? 0.2 : 0.13)
         ctx.fillRect(x0, top, x1 - x0, rowHeight - 4)
       }
 
       if (!pairsMode && glyphSel && glyphSel.row === r) {
         const g = font.glyph(row[glyphSel.index]?.n)
         if (g) {
-          ctx.fillStyle = tint(accentColor, dark ? 0.2 : 0.13)
+          ctx.fillStyle = withAlpha(p.accent, dark ? 0.2 : 0.13)
           ctx.fillRect(xs[r][glyphSel.index], top, g.w * scale, rowHeight - 4)
         }
       }
@@ -274,7 +260,7 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
         const x = xs[r][i]
         ctx.save()
         ctx.globalAlpha = t.ctx ? 0.3 : 1
-        ctx.fillStyle = t.ctx ? colors.text : t.x ? colors.mismatch : !pairsMode && !t.m ? NON_MEMBER : colors.text
+        ctx.fillStyle = t.ctx ? p.glyph : t.x ? p.errorGlyph : !pairsMode && !t.m ? p.accent : p.glyph
         ctx.translate(x, baseline)
         ctx.scale(scale, -scale)
         ctx.fill(font.outlines.get(t.n))
@@ -306,7 +292,7 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
           const x = xs[r][i]
           const right = x + g.w * scale
           const both = pairsMode || selected
-          ctx.fillStyle = !pairsMode && t.x ? colors.mismatchLabel : colors.label
+          ctx.fillStyle = !pairsMode && t.x ? p.error : p.label
           if (both || side === 'kern1') {
             const m = both ? g.r : t.g ?? null
             if (m !== null) {
@@ -330,7 +316,7 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
         y += MARGIN_ROW
       }
       if (showNames) {
-        ctx.fillStyle = colors.label
+        ctx.fillStyle = p.label
         ctx.textAlign = 'center'
         row.forEach((t, i) => {
           if (t.ctx) return
@@ -350,7 +336,7 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
           const end = xs[r][i] + g.w * scale
           const w = Math.max(4, Math.abs(k) * scale)
           const bx = k < 0 ? end - w : end
-          const color = k < 0 ? KERN_NEG : KERN_POS
+          const color = k < 0 ? p.negative : p.positive
           ctx.fillStyle = color
           ctx.fillRect(bx, barBottom - 4, w, 4)
           const info = resolveKernPair(font.kerning, font.index, [t.n, row[i + 1].n])
@@ -369,7 +355,7 @@ export function Preview({ font, side, input, run, readOnly, keysRef }: Props) {
         })
       }
     }
-  }, [view, layout, colors, font, pairsMode, selection, glyphSel, showMargins, showNames, side, dark, accentColor])
+  }, [view, layout, p, font, pairsMode, selection, glyphSel, showMargins, showNames, side, dark])
 
   useEffect(() => {
     const id = requestAnimationFrame(paint)

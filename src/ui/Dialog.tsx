@@ -20,7 +20,7 @@ export type DialogSpec = {
 const BUTTON = {
   default: 'border border-line bg-surface hover:bg-raised',
   suggested: 'bg-accent text-accent-ink hover:brightness-110',
-  destructive: 'bg-red-600 text-white hover:bg-red-500',
+  destructive: 'bg-danger text-white hover:brightness-110',
 }
 
 export function Dialog({ spec }: { spec: DialogSpec }) {

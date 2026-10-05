@@ -12,9 +12,11 @@ export type ThemeChoice = 'system' | 'light' | 'dark'
  */
 type Tone = { accent: string; ink: string; soft: string }
 export const ACCENTS = {
+  sky: { name: 'Sky', light: { accent: '#0369a1', ink: '#ffffff', soft: '#dff0fa' }, dark: { accent: '#38bdf8', ink: '#07161f', soft: '#133042' } },
   blue: { name: 'Blue', light: { accent: '#3348d6', ink: '#ffffff', soft: '#e4e8fd' }, dark: { accent: '#8794ff', ink: '#11131a', soft: '#272c4a' } },
   teal: { name: 'Teal', light: { accent: '#0f766e', ink: '#ffffff', soft: '#d9f2ef' }, dark: { accent: '#2dd4bf', ink: '#0b1a19', soft: '#133533' } },
   violet: { name: 'Violet', light: { accent: '#7c3aed', ink: '#ffffff', soft: '#ede5fd' }, dark: { accent: '#b39dff', ink: '#160f2a', soft: '#2e2648' } },
+  plum: { name: 'Plum', light: { accent: '#a21caf', ink: '#ffffff', soft: '#f8e3fa' }, dark: { accent: '#e879f9', ink: '#200a24', soft: '#3d1e42' } },
   rose: { name: 'Rose', light: { accent: '#be185d', ink: '#ffffff', soft: '#fbe3ee' }, dark: { accent: '#f472b6', ink: '#230b16', soft: '#42202f' } },
   graphite: { name: 'Graphite', light: { accent: '#334155', ink: '#ffffff', soft: '#e3e7ed' }, dark: { accent: '#cbd5e1', ink: '#11131a', soft: '#2c3038' } },
 } satisfies Record<string, { name: string; light: Tone; dark: Tone }>
