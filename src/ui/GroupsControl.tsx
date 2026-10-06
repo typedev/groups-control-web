@@ -15,6 +15,7 @@ import {
 } from '../model/font'
 import { freeName, nameProblem } from '../model/naming'
 import { buildPairRows } from '../model/pairs'
+import * as Sel from '../model/selection'
 import type { GroupScope, HistoryState, OpResult, Refused, ToolSpec } from '../worker/protocol'
 import { ToolDialog } from './ToolDialog'
 import { Button, Check, HelpButton, KeepKerningSwitch, Menu, MenuItem, MenuSeparator, Segmented, Select, TextInput } from './controls'
@@ -38,7 +39,6 @@ import { Preview, type PreviewInput, type PreviewKeys } from './Preview'
 import { Splitter } from './Splitter'
 import { usePalette } from './palette'
 
-type Source = 'font' | 'groups' | 'pairs'
 type Ask = (spec: Omit<DialogSpec, 'onClose'>) => Promise<{ value: string | null; input: string }>
 export type Run = <R>(call: () => Promise<OpResult<R>>) => Promise<OpResult<R> | null>
 
@@ -50,22 +50,6 @@ type Props = {
   run: Run
   ask: Ask
   onStats: (text: string) => void
-}
-
-/** Plain click selects one; Cmd/Ctrl toggles; Shift extends from the anchor. */
-function nextSelection(current: Set<string>, list: string[], index: number, anchor: number | null, e: MouseEvent): Set<string> {
-  const name = list[index]
-  if (e.shiftKey && anchor !== null) {
-    const [a, b] = [anchor, index].sort((x, y) => x - y)
-    return new Set(list.slice(a, b + 1))
-  }
-  if (e.metaKey || e.ctrlKey) {
-    const next = new Set(current)
-    if (next.has(name)) next.delete(name)
-    else next.add(name)
-    return next
-  }
-  return new Set([name])
 }
 
 function Column({
@@ -138,25 +122,14 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
   const [sortMode, setSortMode] = useState<SortMode>('order')
   const [hideGrouped, setHideGrouped] = useState(true)
   const [kernFilter, setKernFilter] = useState<KernFilter>('all')
-  const [fontSelection, setFontSelection] = useState<Set<string>>(new Set())
-  const [fontAnchor, setFontAnchor] = useState<number | null>(null)
 
   // Column 2
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null)
-  const [activeGroup, setActiveGroup] = useState<string | null>(null)
-  const [contentSelection, setContentSelection] = useState<Set<string>>(new Set())
-  const [contentAnchor, setContentAnchor] = useState<number | null>(null)
   const [groupScroll, setGroupScroll] = useState<{ index: number; key: number } | null>(null)
   const [keepKerning, setKeepKerning] = useState(true)
 
-  // Column 3
-  const [pairSelection, setPairSelection] = useState<Set<string>>(new Set())
-  const [source, setSourceState] = useState<Source>('groups')
-  const [listSource, setListSource] = useState<'font' | 'groups'>('groups')
-  const setSource = useCallback((s: Source) => {
-    setSourceState(s)
-    if (s !== 'pairs') setListSource(s)
-  }, [])
+  // One subject across the panels (model/selection.ts).
+  const [sel, setSel] = useState<Sel.Selection>(() => Sel.initialSelection(null))
+  const group = sel.group
 
   const [widths, setWidths] = useState([1 / 3, 1 / 3, 1 / 3])
   const [groupsFraction, setGroupsFraction] = useState(0.55)
@@ -208,12 +181,9 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
   const suppressClick = useRef(false)
 
   const selectGroup = useCallback(
-    (group: string | null, scroll = true, sideId: SideId = side) => {
-      setSelectedGroup(group)
-      setActiveGroup(group)
-      setContentSelection(new Set())
-      setPairSelection(new Set())
-      if (group && scroll) setGroupScroll({ index: font.side(sideId).groups.indexOf(group), key: Date.now() })
+    (group: string | null, scroll = true) => {
+      setSel(Sel.selectGroup(group))
+      if (group && scroll) setGroupScroll({ index: font.side(side).groups.indexOf(group), key: Date.now() })
     },
     [font, side],
   )
@@ -222,20 +192,8 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
   const fontRef = useRef(font)
   fontRef.current = font
   useEffect(() => {
-    setFontSelection(new Set())
-    const first = fontRef.current.side(side).groups[0] ?? null
-    setSelectedGroup(first)
-    setActiveGroup(first)
-    setContentSelection(new Set())
-    setPairSelection(new Set())
-    setSource('groups')
-  }, [side, setSource])
-
-  // A group that disappeared (deleted elsewhere, revert) is no longer shown.
-  useEffect(() => {
-    if (selectedGroup && !(selectedGroup in font.data.groups)) setSelectedGroup(null)
-    if (activeGroup && !(activeGroup in font.data.groups)) setActiveGroup(null)
-  }, [font, selectedGroup, activeGroup])
+    setSel(Sel.initialSelection(fontRef.current.side(side).groups[0] ?? null))
+  }, [side])
 
   useEffect(() => {
     onStats(`${sideData.groups.length} groups | ${sideData.grouped.size}/${font.data.order.length} glyphs grouped`)
@@ -254,53 +212,32 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
     )
   }, [font, sortMode, searchMode, searchText, sideData, kernFilter, hideGrouped])
 
-  const members = useMemo(() => (activeGroup ? font.data.groups[activeGroup] ?? [] : []), [font, activeGroup])
-  const badges = useMemo(() => (activeGroup ? memberBadges(font, activeGroup, side, gridBeamY) : []), [font, activeGroup, side, gridBeamY])
+  // Hidden glyphs, deleted groups and departed members leave the selection.
+  useEffect(() => {
+    const visible = new Set(fontNames)
+    setSel((s) => Sel.prune(s, visible, font.data.groups))
+  }, [font, fontNames])
 
-  const pairRows = useMemo(() => {
-    const first = [...fontSelection][0]
-    const entries =
-      listSource === 'font' && first !== undefined
-        ? font.pairsWithKeys([first], side)
-        : selectedGroup && selectedGroup in font.data.groups
-          ? font.pairsOfGroup(selectedGroup, side)
-          : []
-    return buildPairRows(font, entries)
-  }, [font, side, listSource, fontSelection, selectedGroup])
+  const members = useMemo(() => (group ? font.data.groups[group] ?? [] : []), [font, group])
+  const badges = useMemo(() => (group ? memberBadges(font, group, side, gridBeamY) : []), [font, group, side, gridBeamY])
+
+  const pairRows = useMemo(() => buildPairRows(font, Sel.pairEntries(font, sel, side, fontNames)), [font, sel, side, fontNames])
 
   /** WIN:1750-1808 — what the bottom preview shows. */
   const previewInput = useMemo<PreviewInput>(() => {
     const pairs = pairRows
-      .filter((r) => pairSelection.has(`${r.left}\u0000${r.right}`))
+      .filter((r) => sel.pairs.has(`${r.left}\u0000${r.right}`))
       .map((r) => [r.left, r.right] as [string, string])
-    if (source === 'pairs' && pairs.length) {
+    if (sel.focus === 'pairs' && pairs.length) {
       const title = pairs.length === 1 ? pairs[0].map((k) => (k in font.data.groups ? `@${displayGroupName(k, k.startsWith('public.kern1.') ? 'kern1' : 'kern2')}` : k)).join('  ') : ''
       return { kind: 'pairs', pairs, title }
     }
-    const glyph =
-      listSource === 'font' && fontSelection.size
-        ? [...fontSelection][0]
-        : source !== 'font' && contentSelection.size === 1
-          ? [...contentSelection][0]
-          : null
-    if (glyph) {
-      const group = font.groupOf(glyph, side)
-      const members = group ? font.data.groups[group] : [glyph]
-      return { kind: 'line', title: glyph, subject: { names: [glyph], side, key: members[0] ?? glyph, members } }
-    }
-    if (selectedGroup && selectedGroup in font.data.groups) {
-      const members = font.data.groups[selectedGroup]
-      return {
-        kind: 'line',
-        title: `@ ${displayGroupName(selectedGroup, side)}`,
-        subject: { names: members, side, key: members[0] ?? null, members },
-      }
-    }
-    return null
-  }, [font, side, source, listSource, pairRows, pairSelection, fontSelection, contentSelection, selectedGroup])
+    const line = Sel.previewLine(font, sel, side, fontNames)
+    return line && { kind: 'line', ...line }
+  }, [font, side, sel, fontNames, pairRows])
 
   /** Selected font glyphs in grid order. */
-  const fontSelected = () => fontNames.filter((n) => fontSelection.has(n))
+  const fontSelected = () => Sel.fontSelected(sel, fontNames)
 
   // -- editing actions ------------------------------------------------------------
 
@@ -311,19 +248,19 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
   const addToGroup = async (group: string, names: string[], index: number) => {
     const res = await run(() => python.call('addGlyphs', [group, names, keepKerning, index]))
     if (!res) return
-    if (group === activeGroup) setContentSelection(new Set(res.result.added))
+    setSel((s) => Sel.glyphsAdded(s, group, res.result.added))
     await reportRefused(res.result.grouped, 'Glyphs not added')
   }
 
   const removeFromGroup = async (names: string[]) => {
-    if (!activeGroup) return
-    const res = await run(() => python.call('removeGlyphs', [activeGroup, names, keepKerning]))
-    if (res) setContentSelection(new Set())
+    if (!group) return
+    const res = await run(() => python.call('removeGlyphs', [group, names, keepKerning]))
+    if (res) setSel(Sel.contentCleared)
   }
 
   const reorder = async (names: string[], insert: number) => {
-    if (!activeGroup) return
-    await run(() => python.call('move', [activeGroup, names, insert]))
+    if (!group) return
+    await run(() => python.call('move', [group, names, insert]))
   }
 
   const createGroup = async () => {
@@ -356,8 +293,6 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
           const res = await run(() => python.call('addGlyphs', [prefix + short, free, keepKerning, -1]))
           if (res) {
             selectGroup(prefix + short)
-            setFontSelection(new Set())
-            setSource('groups')
             await reportRefused(grouped, 'Some glyphs left out')
           }
           return
@@ -377,8 +312,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
     const created = res.result.group
     // The new model is not in props yet; select once it arrives.
     pendingSelect.current = created
-    setFontSelection(new Set())
-    setSource('groups')
+    setSel((s) => Sel.selectGroup(s.group))
     await reportRefused(grouped, 'Some glyphs left out')
   }
 
@@ -392,7 +326,6 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
   }, [font, selectGroup])
 
   const deleteGroup = async () => {
-    const group = selectedGroup
     if (!group) return
     const pairs = font.pairsWithKeys([group], side).length
     const members = (font.data.groups[group] ?? []).length
@@ -409,16 +342,10 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
       ],
     })
     if (answer.value !== 'delete') return
-    const res = await run(() => python.call('deleteGroup', [group, keepKerning]))
-    if (res) {
-      setSelectedGroup(null)
-      setActiveGroup(null)
-      setContentSelection(new Set())
-    }
+    if (await run(() => python.call('deleteGroup', [group, keepKerning]))) setSel(Sel.groupCleared)
   }
 
   const renameGroup = async () => {
-    const group = selectedGroup
     if (!group) return
     const short = displayGroupName(group, side)
     const answer = await ask({
@@ -444,7 +371,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
 
   const deletePairs = async () => {
     const visible = new Set(pairRows.map((r) => `${r.left}\u0000${r.right}`))
-    const keys = [...pairSelection].filter((k) => visible.has(k))
+    const keys = [...sel.pairs].filter((k) => visible.has(k))
     if (!keys.length) return
     const answer = await ask({
       title: `Delete ${keys.length} pair${keys.length === 1 ? '' : 's'}?`,
@@ -456,7 +383,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
     })
     if (answer.value !== 'delete') return
     const pairs = keys.map((k) => k.split('\u0000') as [string, string])
-    if (await run(() => python.call('deletePairs', [pairs]))) setPairSelection(new Set())
+    if (await run(() => python.call('deletePairs', [pairs]))) setSel(Sel.pairsCleared)
   }
 
   // -- import / export (Font-Rover import_export.py) -----------------------------------
@@ -509,11 +436,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
       ],
     })
     if (answer.value !== 'import') return
-    if (await run(() => python.call('importApply', []))) {
-      setSelectedGroup(null)
-      setActiveGroup(null)
-      setContentSelection(new Set())
-    }
+    if (await run(() => python.call('importApply', []))) setSel(Sel.groupCleared)
   }
 
   const saveHistory = async () => {
@@ -538,13 +461,13 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
   const targetAt = useCallback(
     (d: Drag, x: number, y: number): DropTarget => {
       const content = contentGrid.current?.hit(x, y)
-      if (content && activeGroup) return { kind: 'content', insert: content.insert }
-      const group = groupsGrid.current?.hit(x, y)
-      if (group && group.index >= 0 && d.source === 'font') return { kind: 'group', index: group.index }
+      if (content && group) return { kind: 'content', insert: content.insert }
+      const cell = groupsGrid.current?.hit(x, y)
+      if (cell && cell.index >= 0 && d.source === 'font') return { kind: 'group', index: cell.index }
       if (d.source === 'content' && fontGrid.current?.hit(x, y)) return { kind: 'font' }
       return null
     },
-    [activeGroup],
+    [group],
   )
 
   useEffect(() => {
@@ -560,8 +483,8 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
       setDrag(null)
       setDropTarget(null)
       if (!target) return
-      if (target.kind === 'content' && activeGroup) {
-        if (drag.source === 'font') void addToGroup(activeGroup, drag.names, target.insert)
+      if (target.kind === 'content' && group) {
+        if (drag.source === 'font') void addToGroup(group, drag.names, target.insert)
         else void reorder(drag.names, target.insert)
       } else if (target.kind === 'group') {
         void addToGroup(sideData.groups[target.index], drag.names, -1)
@@ -592,21 +515,21 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
     (ctx: CanvasRenderingContext2D, i: number, r: CellRect) => {
       const name = fontNames[i]
       const mark = sideData.grouped.has(name) ? 'grouped' : sideData.kerned.has(name) ? 'kerned' : null
-      drawFontCell(ctx, font, name, r, { selected: fontSelection.has(name), mark }, theme)
+      drawFontCell(ctx, font, name, r, { selected: sel.font.has(name), active: sel.content.has(name), mark }, theme)
     },
-    [font, fontNames, sideData, fontSelection, theme],
+    [font, fontNames, sideData, sel.font, sel.content, theme],
   )
 
   const drawGroup = useCallback(
     (ctx: CanvasRenderingContext2D, i: number, r: CellRect) => {
-      const group = sideData.groups[i]
-      drawGroupCell(ctx, font, group, r, side, font.validate(group, side, gridBeamY), {
-        selected: group === selectedGroup && source === 'groups',
-        active: group === activeGroup,
+      const name = sideData.groups[i]
+      drawGroupCell(ctx, font, name, r, side, font.validate(name, side, gridBeamY), {
+        selected: name === group && sel.focus === 'groups',
+        active: name === group,
         dropHover: i === groupHover,
       }, theme)
     },
-    [font, sideData, side, selectedGroup, activeGroup, source, groupHover, theme, gridBeamY],
+    [font, sideData, side, group, sel.focus, groupHover, theme, gridBeamY],
   )
 
   const drawContent = useCallback(
@@ -618,45 +541,35 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
         name,
         r,
         side,
-        { selected: contentSelection.has(name), badge: badges[i], missing: !font.glyphSet.has(name) },
+        { selected: sel.content.has(name), badge: badges[i], missing: !font.glyphSet.has(name) },
         theme,
       )
       if (contentInsert === i) drawInsertBar(ctx, r, false, theme.accent)
       else if (contentInsert === members.length && i === members.length - 1) drawInsertBar(ctx, r, true, theme.accent)
     },
-    [font, members, side, contentSelection, badges, theme, contentInsert],
+    [font, members, side, sel.content, badges, theme, contentInsert],
   )
 
   // -- clicks -------------------------------------------------------------------------
 
   const onFontClick = (i: number, e: MouseEvent) => {
     if (consumeClick()) return
-    const name = fontNames[i]
-    const group = font.groupOf(name, side)
-    const plain = !e.shiftKey && !e.metaKey && !e.ctrlKey
-    if (plain && group) {
-      // W:1324-1360: a single grouped glyph jumps to its group.
-      selectGroup(group)
-      setContentSelection(new Set([name]))
-      setFontSelection(new Set())
-      setSource('groups')
-      return
+    const next = Sel.clickFont(sel, fontNames, i, e, (n) => font.groupOf(n, side))
+    setSel(next)
+    // W:1324-1360: a single grouped glyph jumps to its group.
+    if (next.group !== sel.group && next.group) {
+      setGroupScroll({ index: sideData.groups.indexOf(next.group), key: Date.now() })
     }
-    setFontSelection(nextSelection(fontSelection, fontNames, i, fontAnchor, e))
-    if (!e.shiftKey) setFontAnchor(i)
-    setSource('font')
   }
 
   const onGroupClick = (i: number) => {
     if (consumeClick()) return
     selectGroup(sideData.groups[i], false)
-    setSource('groups')
   }
 
   const onContentClick = (i: number, e: MouseEvent) => {
     if (consumeClick()) return
-    setContentSelection(nextSelection(contentSelection, members, i, contentAnchor, e))
-    if (!e.shiftKey) setContentAnchor(i)
+    setSel(Sel.clickContent(sel, members, i, e))
   }
 
   const resize = (at: number, delta: number) =>
@@ -671,11 +584,11 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
 
   const fontPointerDown = (i: number, e: PointerEvent) => {
     const name = fontNames[i]
-    startDrag('font', fontSelection.has(name) ? fontSelected() : [name], e)
+    startDrag('font', sel.font.has(name) ? fontSelected() : [name], e)
   }
   const contentPointerDown = (i: number, e: PointerEvent) => {
     const name = members[i]
-    startDrag('content', contentSelection.has(name) ? members.filter((m) => contentSelection.has(m)) : [name], e)
+    startDrag('content', sel.content.has(name) ? Sel.contentSelected(sel, members) : [name], e)
   }
 
   return (
@@ -683,13 +596,13 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
       <div className="flex shrink-0 flex-wrap items-center gap-2 px-3 pb-1 pt-2.5">
         <KeepKerningSwitch on={keepKerning} onChange={setKeepKerning} onHelp={() => showHelp('keepKerning')} />
         <Divider />
-        <Button disabled={readOnly || !fontSelection.size} onClick={createGroup} title="Create a group from the selected glyphs">
+        <Button disabled={readOnly || !sel.font.size} onClick={createGroup} title="Create a group from the selected glyphs">
           <span aria-hidden className="text-base leading-none">+</span> Add group
         </Button>
-        <Button disabled={readOnly || !selectedGroup} onClick={renameGroup} title="Rename the selected group">
+        <Button disabled={readOnly || !group} onClick={renameGroup} title="Rename the selected group">
           Rename
         </Button>
-        <Button disabled={readOnly || !selectedGroup} onClick={deleteGroup} title="Delete the selected group">
+        <Button disabled={readOnly || !group} onClick={deleteGroup} title="Delete the selected group">
           Delete
         </Button>
         <Divider />
@@ -764,7 +677,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
       <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex min-h-0 px-3 py-1.5" style={{ flex: 1 - previewFraction }}>
         <div className="flex min-h-0 min-w-0 flex-col" style={{ width: `${widths[0] * 100}%` }}>
-          <Column active={source === 'font'} drop={dropTarget?.kind === 'font'} topic="font" className="flex-1">
+          <Column active={sel.focus === 'font'} drop={dropTarget?.kind === 'font'} topic="font" className="flex-1">
             <Toolbar>
               <div className="flex min-w-0 flex-[1_1_100%] gap-2">
                 <Select value={searchMode} onChange={(e) => setSearchMode(e.target.value as SearchMode)} aria-label="Search by">
@@ -812,13 +725,13 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
             />
             <Footer>
               {fontNames.length} of {font.data.order.length} glyphs
-              {fontSelection.size ? `, ${fontSelection.size} selected` : ''}
+              {sel.font.size ? `, ${sel.font.size} selected` : ''}
             </Footer>
           </Column>
         </div>
         <Splitter direction="horizontal" onDrag={(d) => resize(0, d)} />
         <div className="flex min-h-0 min-w-0 flex-col" style={{ width: `${widths[1] * 100}%` }}>
-          <Column active={source === 'groups'} topic="groups" className="min-h-0 flex-1">
+          <Column active={sel.focus === 'groups'} topic="groups" className="min-h-0 flex-1">
             <Toolbar>
               <Segmented<SideId>
                 tone="accent"
@@ -832,14 +745,11 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
               />
               <Select
                 className="min-w-24 flex-1"
-                value={selectedGroup ?? ''}
-                onChange={(e) => {
-                  selectGroup(e.target.value || null)
-                  setSource('groups')
-                }}
+                value={group ?? ''}
+                onChange={(e) => selectGroup(e.target.value || null)}
                 aria-label="Group"
               >
-                {!selectedGroup && <option value="">—</option>}
+                {!group && <option value="">—</option>}
                 {sideData.groups.map((g) => (
                   <option key={g} value={g}>
                     {displayGroupName(g, side)}
@@ -864,9 +774,9 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
             <Splitter direction="vertical" onDrag={(d) => setGroupsFraction((f) => Math.min(0.85, Math.max(0.15, f + d)))} />
             <div className="flex min-h-0 flex-col" style={{ flex: 1 - groupsFraction }}>
               <div className="flex items-baseline gap-2 border-t border-line px-3 pb-1 pt-2 text-xs text-muted">
-                {activeGroup ? (
+                {group ? (
                   <>
-                    <span className="text-[13px] font-semibold text-ink">{displayGroupName(activeGroup, side)}</span>
+                    <span className="text-[13px] font-semibold text-ink">{displayGroupName(group, side)}</span>
                     {`${members.length} glyph${members.length === 1 ? '' : 's'}, first is the key glyph`}
                   </>
                 ) : (
@@ -889,18 +799,14 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
         </div>
         <Splitter direction="horizontal" onDrag={(d) => resize(1, d)} />
         <div className="flex min-h-0 min-w-0 flex-col" style={{ width: `${widths[2] * 100}%` }}>
-          <Column active={source === 'pairs'} topic="pairs" className="flex-1">
+          <Column active={sel.focus === 'pairs'} topic="pairs" className="flex-1">
             <Toolbar>
               <span className="text-[13px] font-semibold">Pairs</span>
               <span className="min-w-0 flex-1 truncate text-xs text-muted">
-                {listSource === 'font' && fontSelection.size
-                  ? [...fontSelection][0]
-                  : selectedGroup
-                    ? `@.${displayGroupName(selectedGroup, side)} and its members`
-                    : ''}
+                {Sel.pairsTitle(sel, side, fontNames)}
               </span>
               <Button
-                disabled={readOnly || !pairRows.some((r) => pairSelection.has(`${r.left}\u0000${r.right}`))}
+                disabled={readOnly || !pairRows.some((r) => sel.pairs.has(`${r.left}\u0000${r.right}`))}
                 onClick={deletePairs}
               >
                 Delete pairs
@@ -909,9 +815,9 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
             </Toolbar>
             <PairsList
               rows={pairRows}
-              selected={pairSelection}
-              onSelect={setPairSelection}
-              onFocus={() => setSource('pairs')}
+              selected={sel.pairs}
+              onSelect={(keys) => setSel((s) => Sel.selectPairs(s, keys))}
+              onFocus={() => setSel(Sel.focusPairs)}
               onDelete={readOnly ? undefined : deletePairs}
               onEditKey={(e) => previewKeys.current?.(e) ?? false}
             />
@@ -944,17 +850,13 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
         <ToolDialog
           tool={tool}
           readOnly={readOnly}
-          hasSelectedGroup={!!selectedGroup}
+          hasSelectedGroup={!!group}
           onPlan={(options) =>
-            python.call('toolPlan', [tool.id, { ...options, _selectedGroups: selectedGroup ? [selectedGroup] : [], _side: side }])
+            python.call('toolPlan', [tool.id, { ...options, _selectedGroups: group ? [group] : [], _side: side }])
           }
           onApply={async () => {
             const res = await run(() => python.call('toolApply', []))
-            if (res) {
-              setSelectedGroup(null)
-              setActiveGroup(null)
-              setContentSelection(new Set())
-            }
+            if (res) setSel(Sel.groupCleared)
             return !!res
           }}
           onClose={() => setTool(null)}

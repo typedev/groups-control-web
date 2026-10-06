@@ -81,7 +81,8 @@ export function PairsList({ rows, selected, onSelect, onFocus, onDelete, onEditK
   const selectedHere = useMemo(() => sorted.filter((r) => selected.has(rowKey(r))).length, [sorted, selected])
   const scroller = useRef<HTMLDivElement>(null)
   const [view, setView] = useState({ top: 0, height: 0 })
-  const anchor = useRef<number | null>(null)
+  // A key, not an index: the rows change with the subject and with sorting.
+  const anchor = useRef<string | null>(null)
 
   useLayoutEffect(() => {
     const el = scroller.current
@@ -99,12 +100,13 @@ export function PairsList({ rows, selected, onSelect, onFocus, onDelete, onEditK
   const click = (index: number, e: React.MouseEvent) => {
     onFocus()
     const key = rowKey(sorted[index])
-    if (e.shiftKey && anchor.current !== null) {
-      const [a, b] = [anchor.current, index].sort((x, y) => x - y)
+    const from = anchor.current === null ? -1 : sorted.findIndex((r) => rowKey(r) === anchor.current)
+    if (e.shiftKey && from >= 0) {
+      const [a, b] = [from, index].sort((x, y) => x - y)
       onSelect(new Set(sorted.slice(a, b + 1).map(rowKey)))
       return
     }
-    anchor.current = index
+    anchor.current = key
     if (e.metaKey || e.ctrlKey) {
       const next = new Set(selected)
       if (next.has(key)) next.delete(key)

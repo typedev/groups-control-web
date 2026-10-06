@@ -5,6 +5,26 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Selection follows one subject across the panels. Selecting a group or a
+  group member clears the font selection; selecting in the font clears the
+  member and pair selections (the open group stays, dashed). A member click
+  takes the focus back from the font and the pairs list.
+- Several glyphs selected in the font: the pairs list shows the pairs of all
+  of them and the preview lines them up against the first (in grid order).
+  Several members selected: the preview shows just those, checked against the
+  key glyph.
+- Members selected in the open group are outlined dashed in the font grid
+  (with Hide grouped off), like the open group in the groups grid.
+
+### Fixed
+- Add group could create a group from a font selection left over after a
+  group was picked.
+- Glyphs hidden by the search or the filters (e.g. dragged into a group with
+  Hide grouped on) no longer stay selected and drive the pairs and preview.
+- Shift-click ranges no longer start from a stale anchor of another group or
+  another pairs list.
+
 ## [0.1.1] — 2026-10-05
 
 ### Added

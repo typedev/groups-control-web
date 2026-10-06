@@ -127,7 +127,12 @@ function kernedMark(ctx: CanvasRenderingContext2D, x: number, y: number, color: 
 
 // -- font grid ------------------------------------------------------------------
 
-export type FontCellState = { selected: boolean; mark: 'grouped' | 'kerned' | null }
+export type FontCellState = {
+  selected: boolean
+  /** Selected as a member of the open group: dashed, like the active group. */
+  active?: boolean
+  mark: 'grouped' | 'kerned' | null
+}
 
 export function drawFontCell(
   ctx: CanvasRenderingContext2D,
@@ -145,6 +150,7 @@ export function drawFontCell(
   if (state.mark === 'grouped') groupedMark(ctx, r.x + 3, r.y + 3, p.groupedMark)
   else if (state.mark === 'kerned') kernedMark(ctx, r.x + 3, r.y + 3, p.accent)
   if (state.selected) outline(ctx, r, p.accent)
+  else if (state.active) outline(ctx, r, p.accent, true)
 }
 
 // -- content grid (members of the active group) --------------------------------------
