@@ -17,6 +17,13 @@ export class WriteError extends Error {
   }
 }
 
+/** Read-write access to a stored folder handle; asks only from a user gesture. */
+export async function ensurePermission(handle: FileSystemDirectoryHandle): Promise<boolean> {
+  const h = handle as PermissionHandle
+  if ((await h.queryPermission({ mode: 'readwrite' })) === 'granted') return true
+  return (await h.requestPermission({ mode: 'readwrite' })) === 'granted'
+}
+
 /**
  * Must run from a user gesture (Save click / Cmd+S) for the permission prompt.
  * Throws WriteError when a file fails, naming what was already written.
@@ -26,12 +33,7 @@ export async function writeToFolder(
   files: SavedFile[],
   onProgress?: (done: number, total: number) => void,
 ): Promise<void> {
-  const h = handle as PermissionHandle
-  if ((await h.queryPermission({ mode: 'readwrite' })) !== 'granted') {
-    if ((await h.requestPermission({ mode: 'readwrite' })) !== 'granted') {
-      throw new Error('Writing to the folder was not allowed.')
-    }
-  }
+  if (!(await ensurePermission(handle))) throw new Error('Writing to the folder was not allowed.')
   // Paths are UFO-relative ("groups.plist", "glyphs/A_.glif") or, for a
   // designspace, relative to its folder ("Bold.ufo/groups.plist").
   const dirs = new Map<string, FileSystemDirectoryHandle>([['', handle]])

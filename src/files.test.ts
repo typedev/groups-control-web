@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
+  changedOnDisk,
   checkFolder,
   classifyName,
+  filesToCheck,
   designspaceSources,
   fromProjectFolder,
   InputError,
@@ -116,5 +118,68 @@ describe('fromProjectFolder', () => {
     await expect(open({ 'a.designspace': DS('../A.ufo') })).rejects.toThrow(/outside this folder/)
     await expect(open({ 'a.designspace': DS('A.ufo'), 'A.ufo': { 'groups.plist': 'g' } })).rejects.toThrow(InputError)
     await expect(open({ 'readme.txt': 'x' })).rejects.toThrow(/no .designspace/)
+  })
+})
+
+const enc = (t: string) => new TextEncoder().encode(t).buffer as ArrayBuffer
+const stored = (paths: Record<string, string>) => Object.entries(paths).map(([path, t]) => ({ path, bytes: enc(t) }))
+
+/** A FileSystemDirectoryHandle stand-in over a nested object of strings. */
+function fakeHandle(name: string, tree: Tree): FileSystemDirectoryHandle {
+  const notFound = () => new DOMException('missing', 'NotFoundError')
+  return {
+    name,
+    kind: 'directory',
+    getDirectoryHandle: async (n: string) => {
+      const v = tree[n]
+      if (v === undefined || typeof v === 'string') throw notFound()
+      return fakeHandle(n, v)
+    },
+    getFileHandle: async (n: string) => {
+      const v = tree[n]
+      if (typeof v !== 'string') throw notFound()
+      return { getFile: async () => new File([v], n) }
+    },
+  } as unknown as FileSystemDirectoryHandle
+}
+
+describe('filesToCheck', () => {
+  it('lists what Save could overwrite', () => {
+    const files = stored({
+      'P/F.designspace': 'ds',
+      'P/A.ufo/metainfo.plist': 'm',
+      'P/A.ufo/groups.plist': 'g',
+      'P/A.ufo/glyphs/a.glif': 'x',
+      'P/sub/B.ufo/metainfo.plist': 'm',
+    })
+    expect(filesToCheck(files)).toEqual([
+      'A.ufo/groups.plist',
+      'A.ufo/kerning.plist',
+      'F.designspace',
+      'sub/B.ufo/groups.plist',
+      'sub/B.ufo/kerning.plist',
+    ])
+    expect(filesToCheck(stored({ 'Font.ufo/metainfo.plist': 'm' }))).toEqual(['groups.plist', 'kerning.plist'])
+  })
+})
+
+describe('changedOnDisk', () => {
+  it('reports changed, deleted and newly created plists', async () => {
+    const files = stored({
+      'P/F.designspace': 'ds',
+      'P/A.ufo/metainfo.plist': 'm',
+      'P/A.ufo/groups.plist': 'g',
+      'P/A.ufo/kerning.plist': 'k',
+      'P/B.ufo/metainfo.plist': 'm',
+      'P/B.ufo/groups.plist': 'g',
+    })
+    const same = fakeHandle('P', { 'F.designspace': 'ds', 'A.ufo': { 'groups.plist': 'g', 'kerning.plist': 'k' }, 'B.ufo': { 'groups.plist': 'g' } })
+    expect(await changedOnDisk(same, files)).toEqual([])
+    const moved = fakeHandle('P', {
+      'F.designspace': 'ds',
+      'A.ufo': { 'groups.plist': 'g', 'kerning.plist': 'k2' },
+      'B.ufo': { 'kerning.plist': 'new' },
+    })
+    expect(await changedOnDisk(moved, files)).toEqual(['A.ufo/kerning.plist', 'B.ufo/groups.plist', 'B.ufo/kerning.plist'])
   })
 })

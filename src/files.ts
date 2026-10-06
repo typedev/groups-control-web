@@ -270,6 +270,15 @@ export async function pickFolder(choose: ChooseDesignspace, onProgress?: ReadPro
   } catch {
     return null // cancelled
   }
+  return fromFolderHandle(handle, choose, onProgress)
+}
+
+/** What a folder handle holds: a .ufo folder, or a project folder with a .designspace. */
+export async function fromFolderHandle(
+  handle: FileSystemDirectoryHandle,
+  choose: ChooseDesignspace,
+  onProgress?: ReadProgress,
+): Promise<FontInput | null> {
   const kind = classifyName(handle.name)
   if (kind === null) return fromProjectFolder(handleFolder(handle), choose, Promise.resolve(handle), onProgress)
   if (kind !== 'folder') throw unsupported(handle.name)
@@ -277,4 +286,63 @@ export async function pickFolder(choose: ChooseDesignspace, onProgress?: ReadPro
   await collect(handleFolder(handle), '', pending, handle.name)
   checkFolder(handle.name, pending.map((f) => f.path.slice(handle.name.length + 1)))
   return { input: { name: handle.name, kind: 'folder', files: await readPending(pending, onProgress) }, handle }
+}
+
+// -- restore: has the folder changed since the session was stored? ------------
+
+/** Stored paths start with the folder's own name ("Font.ufo/…", "Project/…"). */
+const inFolder = (path: string) => path.slice(path.indexOf('/') + 1)
+
+/**
+ * The files Save could overwrite, relative to the opened folder: each UFO's
+ * groups.plist and kerning.plist (also when only the disk has one) and the
+ * designspace itself.
+ */
+export function filesToCheck(files: FontFile[]): string[] {
+  const out = new Set<string>()
+  for (const { path } of files) {
+    const rel = inFolder(path)
+    if (rel.toLowerCase().endsWith('.designspace') && !rel.includes('/')) out.add(rel)
+    if (rel === 'metainfo.plist' || rel.endsWith('/metainfo.plist')) {
+      const ufo = rel.slice(0, -'metainfo.plist'.length)
+      out.add(`${ufo}groups.plist`)
+      out.add(`${ufo}kerning.plist`)
+    }
+  }
+  return [...out].sort()
+}
+
+async function readFromFolder(handle: FileSystemDirectoryHandle, rel: string): Promise<ArrayBuffer | null> {
+  const parts = rel.split('/')
+  const leaf = parts.pop()!
+  try {
+    let dir = handle
+    for (const part of parts) dir = await dir.getDirectoryHandle(part)
+    return await (await (await dir.getFileHandle(leaf)).getFile()).arrayBuffer()
+  } catch (e) {
+    if (e instanceof DOMException && (e.name === 'NotFoundError' || e.name === 'TypeMismatchError')) return null
+    throw e
+  }
+}
+
+function sameBytes(a: ArrayBuffer | null, b: ArrayBuffer | null): boolean {
+  if (a === null || b === null) return a === b
+  if (a.byteLength !== b.byteLength) return false
+  const x = new Uint8Array(a)
+  const y = new Uint8Array(b)
+  for (let i = 0; i < x.length; i++) if (x[i] !== y[i]) return false
+  return true
+}
+
+/**
+ * Files Save could overwrite whose content on disk is no longer what the
+ * stored session was opened from (paths relative to the folder).
+ */
+export async function changedOnDisk(handle: FileSystemDirectoryHandle, files: FontFile[]): Promise<string[]> {
+  const stored = new Map(files.map((f) => [inFolder(f.path), f.bytes]))
+  const changed: string[] = []
+  for (const rel of filesToCheck(files)) {
+    if (!sameBytes(await readFromFolder(handle, rel), stored.get(rel) ?? null)) changed.push(rel)
+  }
+  return changed
 }

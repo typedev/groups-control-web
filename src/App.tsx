@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { InputError, type FontInput } from './files'
+import { changedOnDisk, fromFolderHandle, InputError, type FontInput } from './files'
 import { FontModel } from './model/font'
 import { python, useRuntime } from './runtime'
-import { download, sidecarName, ufozName, writeToFolder, WriteError } from './save'
+import { download, ensurePermission, sidecarName, ufozName, writeToFolder, WriteError } from './save'
 import { forgetSession, loadSession, rememberFiles, rememberState, type StoredSession } from './session'
 import { WorkerError } from './worker/client'
 import type { DesignspaceChange, DesignspaceInfo, EditScope, FontSummary, OpenInput, OpResult } from './worker/protocol'
@@ -307,11 +307,58 @@ export function App() {
     return () => clearTimeout(id)
   }, [font])
 
+  /**
+   * Restore re-opens the copies stored at open time. When the folder is at
+   * hand (Chromium), first check that what Save would overwrite has not
+   * changed on disk since (e.g. a git pull), and let the user choose.
+   */
   const restoreSession = useCallback(async () => {
     const s = await loadSession()
     if (!s?.state) return
-    await open(Promise.resolve({ input: { name: s.name, kind: s.kind, files: s.files, main: s.main }, handle: s.handle }), s.state)
-  }, [open])
+    const handle = s.handle
+    let allowed = false
+    try {
+      allowed = !!handle && (await ensurePermission(handle))
+    } catch {
+      allowed = false
+    }
+    if (handle && allowed) {
+      let changed: string[] = []
+      try {
+        changed = await changedOnDisk(handle, s.files)
+      } catch (err) {
+        console.warn('could not compare with the folder', err)
+      }
+      if (changed.length) {
+        const shown = changed.slice(0, 12).join('\n') + (changed.length > 12 ? `\n… and ${changed.length - 12} more` : '')
+        const answer = await ask({
+          title: 'Files changed on disk',
+          body:
+            `Since these edits were stored, ${changed.length === 1 ? 'this file has' : 'these files have'} changed in ${handle.name}:\n\n${shown}\n\n` +
+            'Restore anyway: your edits come back on top of the copies stored back then; saving writes them over the changes on disk.\n' +
+            'Open from disk: the unsaved edits are dropped and the font opens as it is now.',
+          buttons: [
+            { label: 'Cancel', value: 'cancel' },
+            { label: 'Open from disk', value: 'disk' },
+            { label: 'Restore anyway', value: 'restore', kind: 'destructive' },
+          ],
+        })
+        if (answer.value === 'disk') {
+          await forgetSession()
+          setStored(null)
+          const main = s.main?.split('/').pop()
+          await open(
+            fromFolderHandle(handle, async (names) => (main && names.includes(main) ? main : chooseDesignspace(names)), (label, done, total) =>
+              setProgress({ label, done, total }),
+            ),
+          )
+          return
+        }
+        if (answer.value !== 'restore') return
+      }
+    }
+    await open(Promise.resolve({ input: { name: s.name, kind: s.kind, files: s.files, main: s.main }, handle }), s.state)
+  }, [open, ask, chooseDesignspace])
 
   const discardSession = useCallback(async () => {
     await forgetSession()

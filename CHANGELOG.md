@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Restore checks the folder first (Chrome, Edge): when a groups.plist,
+  kerning.plist or the designspace changed on disk since the edits were
+  stored (e.g. after a git pull), it lists them and offers Restore anyway,
+  Open from disk (drop the stored edits) or Cancel.
 - Designspace sessions are autosaved too: after a reload, Restore brings
   back the unsaved edits of every master and the edit scope.
 - **Open folder…** (Chrome, Edge) opens a project folder with a
