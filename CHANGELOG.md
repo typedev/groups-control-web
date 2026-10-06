@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-10-06
+
 ### Added
 - Tools → Between masters → **Replay History into Masters**: run this
   master's recorded group edits (History panel) in other masters, each
