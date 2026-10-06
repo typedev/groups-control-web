@@ -11,7 +11,7 @@ import ufoLib2
 
 from gcweb import api
 
-MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSansLightCondensed.ufo"
+MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSans" / "MutatorSansLightCondensed.ufo"
 K1 = "public.kern1.@MMK_L_A"
 K2 = "public.kern2.@MMK_R_A"
 

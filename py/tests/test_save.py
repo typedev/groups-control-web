@@ -12,7 +12,7 @@ import ufoLib2
 
 from gcweb import api
 
-MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSansLightCondensed.ufo"
+MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSans" / "MutatorSansLightCondensed.ufo"
 K1 = "public.kern1.@MMK_L_A"
 
 
@@ -65,7 +65,8 @@ def test_ufoz_from_ufoz_changes_only_groups(ufoz, tmp_path):
     before, after = entries(ufoz), entries(out)
     assert before.keys() == after.keys()
     assert [k for k in before if before[k] != after[k]] == ["groups.plist"]
-    assert ufoLib2.Font.open(out).groups[K1] == ["A", "Aacute"]
+    with ufoLib2.Font.open(out) as font:
+        assert font.groups[K1] == ["A", "Aacute"]
 
 
 def test_ufoz_from_folder_keeps_every_file(folder, tmp_path):

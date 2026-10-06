@@ -25,7 +25,7 @@ import re
 
 from gcweb.fr_font import FRFont
 from gcweb.scripts import glyph_scripts
-from gcweb.vendor import copy_kerning, interpolate_kerning, transfer_kerning
+from gcweb.vendor import copy_kerning, groups_history, interpolate_kerning, transfer_kerning
 from gcweb.vendor.copy_groups import FontProxy, describe_changes, is_kern_group
 
 GROUP_LINES = 40  # per master, in the dialog
@@ -41,6 +41,8 @@ class MasterContext:
     current: int
     # design-space location of each master
     locations: list[dict] = field(default_factory=list)
+    # the current master's journal (FontGroupsManager.history)
+    history: list = field(default_factory=list)
 
     def targets(self, options: dict) -> list[int]:
         chosen = options.get("targets") or []
@@ -355,6 +357,37 @@ def _transfer(ctx: MasterContext, o: dict) -> MasterPlan:
     return MasterPlan(lines, bool(results), results)
 
 
+# -- Replay History into Masters --------------------------------------------------------
+
+
+def _replay_history(ctx: MasterContext, o: dict) -> MasterPlan:
+    entries = list(ctx.history)
+    if not entries:
+        return MasterPlan(["The history of this master is empty: record edits, or load a history file."], False)
+    targets = ctx.targets(o)
+    if not targets:
+        return MasterPlan(["Choose the masters to replay the history in."], False)
+    lines = [f"Replaying {len(entries)} command(s) of {ctx.names[ctx.current]}'s history in {len(targets)} master(s)."]
+    results = {}
+    for i in targets:
+        view = ctx.docs[i].master
+        replayed = groups_history.replay(
+            entries,
+            ctx.names[i],
+            {n: tuple(m) for n, m in view.groups.items()},
+            dict(view.kerning),
+            ctx.docs[i].ufo.keys(),
+        )
+        result = replayed.result
+        lines.append(f"{ctx.names[i]}: {result.summary}")
+        lines.extend("    " + line for line in result.group_changes[:GROUP_LINES])
+        lines.extend("    " + note for note in replayed.notes)
+        new_groups = {n: tuple(m) for n, m in result.groups.items()}
+        if new_groups != {n: tuple(m) for n, m in view.groups.items()} or result.kerning != dict(view.kerning):
+            results[i] = (new_groups, dict(result.kerning))
+    return MasterPlan(lines, bool(results), results)
+
+
 GLYPHS_OPTIONS = [
     {
         "id": "glyphs",
@@ -399,6 +432,15 @@ MASTER_TOOLS: dict[str, MasterTool] = {
                 {"id": "withGroups", "type": "checkbox", "label": "Also the pairs of their groups", "default": True},
             ],
             _copy_kerning,
+        ),
+        MasterTool(
+            "replayHistory",
+            "Replay History into Masters",
+            "Run this master's recorded group edits (History panel: add, remove, delete, rename) in other "
+            "masters. Each command goes through the same engine there and settles against that master's own "
+            "groups and kerning; glyphs a master lacks are left out.",
+            [TARGETS_OPTION],
+            _replay_history,
         ),
         MasterTool(
             "interpolateKerning",

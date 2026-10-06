@@ -12,7 +12,7 @@ import ufoLib2
 from gcweb import api
 from gcweb.export import CommandPen, margins
 
-MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSansLightCondensed.ufo"
+MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSans" / "MutatorSansLightCondensed.ufo"
 
 
 @pytest.fixture(scope="module")

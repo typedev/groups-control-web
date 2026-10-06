@@ -252,7 +252,7 @@ function push(map: Map<string, number[]>, key: string, value: number) {
 // -- font grid filters (glyph_filter/engine.py, groups_control/font_marks.py) --
 
 export type KernFilter = 'all' | 'kerned' | 'not_kerned'
-export type SearchMode = 'name' | 'unicode'
+export type SearchMode = 'name' | 'unicode' | 'component'
 export type SortMode = 'order' | 'unicode'
 
 /** ISO 15924 "Common": glyphs of no script. */
@@ -267,9 +267,12 @@ function wildcard(pattern: string): RegExp {
 export function searchMatcher(mode: SearchMode, text: string): ((name: string, glyph: GlyphRecord) => boolean) | null {
   const terms = text.split(/[,\s]+/).filter(Boolean)
   if (!terms.length) return null
-  if (mode === 'name') {
+  if (mode === 'name' || mode === 'component') {
     const tests = terms.map((t) => (t.includes('*') ? wildcard(t) : t))
-    return (name) => tests.some((t) => (typeof t === 'string' ? t === name : t.test(name)))
+    const matches = (name: string) => tests.some((t) => (typeof t === 'string' ? t === name : t.test(name)))
+    if (mode === 'name') return matches
+    // Glyphs built with a matching component (direct components only).
+    return (_name, glyph) => glyph.p.some((c) => c[0] === 'c' && matches(c[1]))
   }
   const tests = terms.map((raw) => {
     const t = raw.replace(/^(U\+|0x)/i, '').toUpperCase()

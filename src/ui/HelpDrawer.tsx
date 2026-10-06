@@ -92,12 +92,14 @@ const TOPICS: { id: HelpTopic; label: string; body: ReactNode }[] = [
           items={[
             <>By <b>name</b>: exact, or with <code>*</code> as a wildcard — <code>A*</code>, <code>*.sc</code>, <code>*acute*</code>.</>,
             <>By <b>Unicode</b>: hex code points — <code>0041</code>, <code>U+00C1</code>, <code>04*</code>.</>,
+            <>By <b>component</b>: glyphs built with a component of that name — <code>A</code> finds Aacute, Aring…; <code>*cmb</code> every glyph using a combining mark.</>,
             'Several terms, separated by spaces or commas, find glyphs that match any of them.',
           ]}
         />
         <H>Filters</H>
         <L
           items={[
+            <><b>Scripts</b>: only glyphs of the chosen scripts (Latin, Cyrillic, Common…). A glyph's script is its character's, found through its unicode or its base name (<code>a.sc</code>); figures, punctuation and marks are Common.</>,
             <><b>Hide grouped</b> hides glyphs already in a group of the current side (only with All glyphs).</>,
             <><b>Kerned</b> / <b>Not kerned</b>: glyphs that are, or are not, a kerning key on this side by themselves.</>,
             <>Marks: grey squares — in a group; arrows in the accent colour — kerned as a single glyph.</>,

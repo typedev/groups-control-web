@@ -17,7 +17,7 @@ from gcweb import api
 from gcweb.vendor.beam import beam_crossings
 
 ROOT = Path(__file__).resolve().parents[2]
-MUTATOR = ROOT / "fixtures" / "MutatorSansLightCondensed.ufo"
+MUTATOR = ROOT / "fixtures" / "MutatorSans" / "MutatorSansLightCondensed.ufo"
 OUT = ROOT / "fixtures" / "parity" / "beam.json"
 HEIGHTS = [-10, 0, 100, 250, 350, 500, 520, 700, 712.5]
 

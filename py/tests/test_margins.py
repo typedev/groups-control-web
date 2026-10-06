@@ -12,7 +12,7 @@ import ufoLib2
 
 from gcweb import api
 
-MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSansLightCondensed.ufo"
+MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSans" / "MutatorSansLightCondensed.ufo"
 
 
 @pytest.fixture
@@ -83,8 +83,8 @@ def test_ufoz_contains_patched_glyph(ufo, tmp_path):
     call(api.margin_nudge, "B", "right", 7)
     out = tmp_path / "o" / "x.ufoz"
     api.build_ufoz(str(out))
-    font = ufoLib2.Font.open(out)
-    assert font.layers.defaultLayer["B"].width == margins("B")[2]
+    with ufoLib2.Font.open(out) as font:
+        assert font.layers.defaultLayer["B"].width == margins("B")[2]
 
 
 def test_revert_restores_glyphs(ufo):

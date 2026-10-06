@@ -91,6 +91,11 @@ class UfoDocument:
         self.glyph_edits = GlyphEdits(font)
         self._snapshot_baseline()
 
+    def close(self) -> None:
+        """Release the UFO reader: a .ufoz is read through a temporary copy
+        that lives until then (in the browser, in Pyodide's memory)."""
+        self.ufo.close()
+
     @property
     def master(self) -> MasterView:
         return self.masters[0]

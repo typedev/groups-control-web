@@ -220,3 +220,14 @@ describe('scripts', () => {
     expect(new FontModel(data).scriptCounts()).toEqual([[COMMON, data.order.length]])
   })
 })
+
+describe('component search', () => {
+  it('finds glyphs built with a matching component', () => {
+    const match = searchMatcher('component', 'A, acute*')!
+    const withA = { ...g([193], 1, 1), p: [['c', 'A', [1, 0, 0, 1, 0, 0]], ['c', 'acutecomb', [1, 0, 0, 1, 100, 0]]] } as GlyphRecord
+    const plain = g([65], 1, 1)
+    expect(match('Aacute', withA)).toBe(true)
+    expect(match('A', plain)).toBe(false)
+    expect(searchMatcher('component', 'acute')!('Aacute', withA)).toBe(false) // exact unless a wildcard
+  })
+})

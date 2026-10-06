@@ -1,7 +1,7 @@
 // Web Worker that owns Python (Pyodide) and every font mutation.
 import type { OpenInput, Request, Response, SavedFile, WorkerEvent } from './protocol'
+import { PYODIDE_VERSION } from './pyodide-version'
 
-const PYODIDE_VERSION = '314.0.7'
 const PYODIDE_URL = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`
 /** Packages from the Pyodide distribution; our pinned wheels come on top. */
 const PYODIDE_PACKAGES = ['fonttools', 'attrs']
@@ -138,7 +138,7 @@ const handlers: Record<string, (...params: never[]) => unknown> = {
   kernRemove: (l: string, r: string) => JSON.parse(api.kern_remove(l, r)),
   kernException: (l: string, r: string, side: string) => JSON.parse(api.kern_exception(l, r, side)),
   exportGroups: (scope: string) => JSON.parse(api.export_groups(scope)),
-  importPreview: (text: string, scope: string) => JSON.parse(api.import_preview(text, scope)),
+  importPreview: (text: string, scope: string, mode: string, keep: boolean) => JSON.parse(api.import_preview(text, scope, mode, keep)),
   importApply: () => JSON.parse(api.import_apply()),
   sessionState: () => api.session_state(),
   restoreState: (state: string) => JSON.parse(api.restore_state(state)),

@@ -288,10 +288,13 @@ drawer — see CHANGELOG.md.
 - Undo/redo over the recorded diffs (everything: membership, reorder, delete,
   rename, import, tools, kerning, margins).
 - `.designspace` / multi-master, then Glyphs sources — see [LATER.md](LATER.md).
-- Smaller leftovers: font-grid search by component / colour and the Custom /
-  Script sorts; import groups from another UFO and a Merge import mode; Diff
-  against the file on disk; Playwright E2E tests; a service worker for
-  Pyodide; adopt the ufo-spacing-lib fixes in docs/upstream once released.
+- Smaller leftovers: adopt the ufo-spacing-lib fixes in docs/upstream once
+  released (0.4.3 is still the latest, 2026-10-06). Done since: search by
+  component, Merge import mode, service worker (offline start), Scripts
+  filter. Decided against (2026-10-06): a Script sort, search by colour, a
+  Custom sort, import groups from another UFO (Copy Groups and the text
+  export/import cover it), Playwright E2E (checks run in the user's
+  Chrome). Skipped for now: Diff against the file on disk.
 
 ---
 

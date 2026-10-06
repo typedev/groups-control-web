@@ -410,9 +410,22 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, designspace 
 
   const importGroups = async (file: File) => {
     const text = await file.text()
-    const pick = await ask({
+    const how = await ask({
       title: `Import groups from ${file.name}`,
-      body: 'Import replaces the chosen groups of this font with those in the file. Kerning follows the new membership.',
+      body:
+        'Merge: the groups the file lists take its members (glyphs leave their other group); the groups it does not list stay as they are.\n' +
+        'Replace: the chosen groups of this font become exactly those in the file; groups it does not list are deleted.\n\n' +
+        `Kerning follows the new membership (Keep Kerning ${keepKerning ? 'on' : 'off'}).`,
+      buttons: [
+        { label: 'Cancel', value: 'cancel' },
+        { label: 'Replace…', value: 'replace' },
+        { label: 'Merge…', value: 'merge', kind: 'suggested' },
+      ],
+    })
+    if (!how.value || how.value === 'cancel') return
+    const mode = how.value as 'merge' | 'replace'
+    const pick = await ask({
+      title: `${mode === 'merge' ? 'Merge' : 'Replace'} which groups?`,
       buttons: [
         { label: 'Cancel', value: 'cancel' },
         { label: 'Other groups', value: 'other' },
@@ -424,7 +437,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, designspace 
     const scope = pick.value as GroupScope
     let preview
     try {
-      preview = await python.call('importPreview', [text, scope])
+      preview = await python.call('importPreview', [text, scope, mode, keepKerning])
     } catch (err) {
       await ask({ title: 'Cannot import', body: err instanceof Error ? err.message : String(err), buttons: [{ label: 'OK', value: 'ok', kind: 'suggested' }] })
       return
@@ -714,11 +727,12 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, designspace 
                 <Select value={searchMode} onChange={(e) => setSearchMode(e.target.value as SearchMode)} aria-label="Search by">
                   <option value="name">Name</option>
                   <option value="unicode">Unicode</option>
+                  <option value="component">Component</option>
                 </Select>
                 <TextInput
                   className="flex-1"
                   type="search"
-                  placeholder={searchMode === 'name' ? 'Search: A*, *.sc' : 'Search: 0041, 04*'}
+                  placeholder={searchMode === 'name' ? 'Search: A*, *.sc' : searchMode === 'unicode' ? 'Search: 0041, 04*' : 'Built with: A, acute*'}
                   value={searchText}
                   onChange={(e) => setSearchText(e.target.value)}
                   aria-label="Search glyphs"

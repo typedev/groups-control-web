@@ -10,7 +10,7 @@ import pytest
 
 from gcweb import api
 
-MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSansLightCondensed.ufo"
+MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSans" / "MutatorSansLightCondensed.ufo"
 K1 = "public.kern1.@MMK_L_A"
 K2 = "public.kern2.@MMK_R_A"
 
@@ -82,3 +82,21 @@ def test_session_state_round_trip(tmp_path):
     assert api._doc.master.groups[K1] == ("A", "Aacute")
     assert api._doc.master.kerning[(K1, "V")] == -20
     assert call(api.history)["text"].startswith(f"add K+ {K1} Aacute")
+
+
+def test_merge_import_changes_only_listed_groups():
+    text = "public.kern1.@MMK_L_E=E,F\npublic.kern1.@MMK_L_A=A,Aacute\n"
+    res = call(api.import_preview, text, "kern", "merge", True)
+    assert res["ok"] and res["changes"] and res["imported"] == 2
+    out = call(api.import_apply)
+    groups = out["delta"]["groups"]["changed"]
+    assert groups["public.kern1.@MMK_L_E"] == ["E", "F"]
+    # The file does not list @MMK_R_A: merge keeps it, replace would drop it.
+    assert "public.kern2.@MMK_R_A" not in out["delta"]["groups"]["removed"]
+    assert any("Aacute" in line for line in res["lines"])  # not in this font: left out
+
+
+def test_merge_import_moves_glyphs_from_their_other_group():
+    call(api.create_group, "public.kern1.", "EF", '["E", "F"]', True)
+    res = call(api.import_preview, "public.kern1.@MMK_L_E=E\n", "kern", "merge", True)
+    assert "public.kern1.EF: E" in "\n".join(res["lines"])

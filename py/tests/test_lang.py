@@ -11,7 +11,7 @@ from gcweb.document import UfoDocument
 from gcweb.lang import LangChecker
 from gcweb.vendor.compat import PAIR_LANGUAGE_CROSS, PAIR_SCRIPT_CROSS, PAIR_SCRIPT_PARTIAL
 
-MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSansLightCondensed.ufo"
+MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSans" / "MutatorSansLightCondensed.ufo"
 
 
 def make_doc(tmp_path) -> UfoDocument:

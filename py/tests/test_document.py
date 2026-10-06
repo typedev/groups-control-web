@@ -15,7 +15,7 @@ from gcweb import api
 from gcweb.document import GROUPS_FILE, KERNING_FILE, UfoDocument
 
 FIXTURES = Path(__file__).resolve().parents[2] / "fixtures"
-MUTATOR = FIXTURES / "MutatorSansLightCondensed.ufo"
+MUTATOR = FIXTURES / "MutatorSans" / "MutatorSansLightCondensed.ufo"
 
 K1 = "public.kern1.@MMK_L_A"
 K2 = "public.kern2.@MMK_R_A"

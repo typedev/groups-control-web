@@ -13,7 +13,7 @@ from fontTools.ufoLib.glifLib import readGlyphFromString
 
 from gcweb.glif_patch import fmt, patch_glif
 
-MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSansLightCondensed.ufo"
+MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSans" / "MutatorSansLightCondensed.ufo"
 
 
 class _G:

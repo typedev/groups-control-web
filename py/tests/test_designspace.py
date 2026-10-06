@@ -12,7 +12,7 @@ import pytest
 from gcweb import api
 from gcweb.designspace import compare, compatibility_sets
 
-MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSansLightCondensed.ufo"
+MUTATOR = Path(__file__).resolve().parents[2] / "fixtures" / "MutatorSans" / "MutatorSansLightCondensed.ufo"
 
 DESIGNSPACE = """<?xml version='1.0' encoding='UTF-8'?>
 <designspace format="5.0">

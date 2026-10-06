@@ -5,6 +5,23 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Tools → Between masters → **Replay History into Masters**: run this
+  master's recorded group edits (History panel) in other masters, each
+  settled against that master's groups and kerning.
+- Group import can **Merge**: only the groups the file lists change (glyphs
+  leave their other group, kerning follows); **Replace** works as before.
+- Font panel search **by component**: `A` finds the glyphs built with A,
+  `*cmb` those using a combining mark.
+- Offline start: after the first visit a service worker keeps Pyodide, the
+  wheels and the app's files, so the app starts without a network.
+- `fixtures/MutatorSans/`: the open-source MutatorSans designspace (four
+  masters, discrete width axis) with end-to-end tests.
+
+### Fixed
+- Opening a .ufoz again, or closing it, released nothing: its temporary
+  copy stayed in memory (in the browser) or in /tmp (tests).
+
 ## [0.3.0] — 2026-10-06
 
 ### Added

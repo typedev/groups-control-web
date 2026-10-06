@@ -5,4 +5,4 @@ Open-source fonts only. Client fonts are tested locally from `fonts-local/`
 
 | Fixture | Source | License |
 |---|---|---|
-| `MutatorSansLightCondensed.ufo` | [LettError/mutatorSans](https://github.com/LettError/mutatorSans) | MIT, see `MutatorSans-LICENSE.txt` |
+| `MutatorSans/` — `MutatorSans.designspace` and its four masters (`LightCondensed`, `BoldCondensed`, `LightWide`, `BoldWide`); `width` is a discrete axis, `weight` continuous. The single-UFO tests use `MutatorSansLightCondensed.ufo`. | [LettError/mutatorSans](https://github.com/LettError/mutatorSans) (the repo's `MutatorSansDS5.designspace`) | MIT, see `MutatorSans/LICENSE.txt` |

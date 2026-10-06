@@ -22,7 +22,8 @@ from gcweb.export import font_payload, glyph_record
 from gcweb.lang import LangChecker
 from gcweb.master_tools import MASTER_TOOLS, MasterContext, MasterPlan, plan_master_tool
 from gcweb.master_tools import groups_diff as groups_diff_of
-from gcweb.master_tools import plan_match_group
+from gcweb.master_tools import match_one_group, plan_match_group
+from gcweb.vendor.copy_groups import FontProxy, describe_changes
 from gcweb.master_tools import tool_choices as tool_choices_of
 from gcweb.preview import KernEdit, dependency_line, pair_rows
 from gcweb.tools import TOOLS, WorkFont, plan_tool
@@ -65,7 +66,7 @@ _manager: FontGroupsManager | None = None
 _lang: LangChecker | None = None
 _kern: KernEdit | None = None
 _pending_save: dict[int, dict[str, bytes | None]] = {}
-_pending_import: groups_io.ImportReport | None = None
+_pending_import: groups_io.ImportReport | dict | None = None
 _pending_tool = None
 _designspace: Designspace | None = None
 # Which masters a membership edit reaches (designspace only): see EDIT_SCOPES.
@@ -100,8 +101,14 @@ def _activate(index: int) -> None:
     _pending_import = _pending_tool = None
 
 
+def _close_masters() -> None:
+    for m in _masters:
+        m.doc.close()
+
+
 def open_font(path: str) -> str:
     global _masters, _designspace, _scope
+    _close_masters()
     _designspace, _scope = None, "compatibleAll"
     _masters = [MasterSession(UfoDocument(path))]
     _activate(0)
@@ -131,6 +138,7 @@ def open_designspace(path: str, progress=None) -> str:
         masters.append(MasterSession(doc))
     report("Opening masters", total, total)
     ds.timings["mastersMs"] = round((time.perf_counter() - t0) * 1000)
+    _close_masters()
     _designspace, _masters = ds, masters
     return switch_master(ds.default)
 
@@ -252,6 +260,7 @@ def font_data() -> str:
 
 def close_font() -> str:
     global _doc, _manager, _lang, _kern, _designspace, _masters, _current
+    _close_masters()
     _doc = _manager = _lang = _kern = _designspace = None
     _masters, _current = [], 0
     return "null"
@@ -513,10 +522,66 @@ def export_groups(scope: str) -> str:
     return json.dumps({"text": groups_io.format_groups(_require().master.groups, scope)})
 
 
-def import_preview(text: str, scope: str) -> str:
-    """Dry run: what importing would change. Nothing is written until import_apply()."""
+def _merge_import(source: dict, scope: str, keep_kerning: bool, problems: list[str]) -> dict:
+    """Merge: the file's groups take its members; groups it does not list stay.
+
+    Kern groups go through match_one_group (glyphs leave their other group,
+    kerning follows with Keep Kerning); other groups are set outright.
+    """
+    doc = _require()
+    view = doc.master
+    old_groups = {n: tuple(m) for n, m in view.groups.items()}
+    old_kerning = dict(view.kerning)
+    proxy = FontProxy(dict(old_groups), dict(old_kerning), doc.ufo.keys())
+    chosen = groups_io.filter_scope(source, scope)
+    missing: dict[str, list[str]] = {}
+    dropped: list[str] = []
+    moved: dict[str, list[str]] = {}
+    for name, members in chosen.items():
+        present = [g for g in members if g in proxy]
+        absent = [g for g in members if g not in proxy]
+        if absent:
+            missing[name] = absent
+        if members and not present:
+            dropped.append(name)
+            continue
+        if name.startswith((KERN1, KERN2)):
+            for group, glyphs in match_one_group(proxy, present, name, keep_kerning=keep_kerning)["moved"].items():
+                moved.setdefault(group, []).extend(glyphs)
+        else:
+            proxy.groups[name] = tuple(present)
+    new_groups, new_kerning = dict(proxy.groups), dict(proxy.kerning)
+    group_lines, _kerning_lines, summary = describe_changes(old_groups, new_groups, old_kerning, new_kerning)
+    lines = (group_lines or ["No group changed."]) + [summary]
+    for title, items in (
+        ("Glyphs not in the font, left out:", [f"  {g}: {' '.join(m)}" for g, m in missing.items()]),
+        ("Not created — none of their glyphs is in the font:", [f"  {g}" for g in dropped]),
+        ("Taken out of another group of the same side:", [f"  {g}: {' '.join(m)}" for g, m in moved.items()]),
+        ("Lines not read as is:", [f"  {p}" for p in problems]),
+    ):
+        if items:
+            lines += ["", title, *items]
+    return {
+        "groups": new_groups,
+        "kerning": new_kerning,
+        "imported": len(chosen) - len(dropped),
+        "lines": lines,
+        "changes": new_groups != old_groups or new_kerning != old_kerning,
+    }
+
+
+def import_preview(text: str, scope: str, mode: str = "replace", keep_kerning: bool = True) -> str:
+    """Dry run: what importing would change. Nothing is written until import_apply().
+
+    mode "replace": the scoped groups become the file's (Font-Rover's import);
+    "merge": only the groups the file lists change.
+    """
     global _pending_import
     groups, problems = groups_io.parse_groups(text)
+    if mode == "merge":
+        _pending_import = _merge_import(groups, scope, keep_kerning, problems)
+        p = _pending_import
+        return json.dumps({"lines": p["lines"], "ok": True, "changes": p["changes"], "imported": p["imported"]})
     _pending_import = groups_io.import_groups(FRFont(_require()), groups, scope, problems=problems)
     view = _require().master
     changes = (
@@ -540,6 +605,8 @@ def import_apply() -> str:
     if report is None:
         raise RuntimeError("nothing to import")
     _pending_import = None
+    if isinstance(report, dict):  # merge
+        return _replace_all(report["groups"], report["kerning"], {"imported": report["imported"]})
     if not report.ok:
         raise RuntimeError("the import cannot be applied")
     return _replace_all(
@@ -565,6 +632,7 @@ def _master_context() -> MasterContext:
         [m["name"] for m in _designspace.masters],
         _current,
         [m["location"] for m in _designspace.masters],
+        list(_manager.history) if _manager else [],
     )
 
 
