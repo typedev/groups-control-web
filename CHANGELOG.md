@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.2] — 2026-10-06
+
 ### Fixed
 - Preview: long glyph names no longer run into each other — a name that
   would overlap the previous one moves to a second line below (the line is
