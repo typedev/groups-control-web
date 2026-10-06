@@ -38,8 +38,8 @@
   /* Glyph and group cells, preview. */
   --c-cell: #ffffff;          /* glyph cells: white on grey panels */
   --c-group-cell: #ffffff;
-  --c-cell-side: #e9ecf1;
-  --c-cell-hatch: rgba(27, 29, 34, 0.055);
+  --c-cell-side: #e1e5eb;
+  --c-cell-hatch: rgba(27, 29, 34, 0.08);
   --c-glyph: #000000;
   --c-glyph-label: rgba(27, 29, 34, 0.7);
   --c-badge: #3a3f48;

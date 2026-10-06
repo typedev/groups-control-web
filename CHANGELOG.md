@@ -16,6 +16,7 @@ All notable changes to this project are documented here. The format follows
   key glyph.
 - Members selected in the open group are outlined dashed in the font grid
   (with Hide grouped off), like the open group in the groups grid.
+- Light theme: the shaded side half of the group cells is a little darker.
 
 ### Fixed
 - Add group could create a group from a font selection left over after a
