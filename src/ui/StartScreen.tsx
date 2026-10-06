@@ -171,7 +171,7 @@ function Title() {
           C
           <span
             aria-hidden
-            className="absolute left-[calc(100%-0.01em)] top-full mt-3 flex -translate-x-1/2 flex-col items-center gap-1 text-[11px] font-medium tracking-normal text-accent"
+            className="absolute left-[calc(100%-0.01em)] top-full mt-1.5 flex -translate-x-1/2 flex-col items-center gap-1 text-[11px] font-medium tracking-normal text-accent"
           >
             <span className="h-[3px] w-5 rounded-full bg-accent" />
             −10

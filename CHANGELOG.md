@@ -5,6 +5,9 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Start screen: the −10 kerning marker sits closer under the title.
+
 ## [0.1.2] — 2026-10-05
 
 ### Changed
