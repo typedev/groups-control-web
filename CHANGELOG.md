@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.2] — 2026-10-05
+
 ### Changed
 - Selection follows one subject across the panels. Selecting a group or a
   group member clears the font selection; selecting in the font clears the
