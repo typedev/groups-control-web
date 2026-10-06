@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1] — 2026-10-05
+
+### Added
+- Start screen: the name set large above the drop area, its "Co" pair kerned
+  and marked like a kerning value in the preview; credits at the bottom
+  (author, developed with Claude Code, source, licence).
+- The version is shown next to the title (hover: build commit and date) and at
+  the end of the help overview. `scripts/bump_version.py` raises it in
+  package.json, pyproject.toml and the CHANGELOG together.
+
 ### Fixed
 - Light theme: the faint members behind a group's key glyph were drawn as dark
   as the key glyph (the build shortens colour tokens like #000000 to #000,

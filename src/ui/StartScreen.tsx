@@ -32,7 +32,7 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
 
   return (
     <div
-      className="flex flex-1 items-center justify-center p-6"
+      className="flex flex-1 flex-col items-center p-6"
       onDragOver={(e) => {
         e.preventDefault()
         setOver(true)
@@ -42,12 +42,11 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
       }}
       onDrop={onDrop}
     >
-      <div className="w-full max-w-xl">
+      <div className="my-auto w-full max-w-xl pt-6">
+        <Title />
         <div
-          className={`rounded-xl border-2 border-dashed px-8 py-12 text-center transition-colors ${
-            over
-              ? 'border-accent bg-accent-soft'
-              : 'border-line-strong'
+          className={`rounded-2xl border-2 border-dashed px-8 py-10 text-center transition-colors ${
+            over ? 'border-accent bg-accent-soft' : 'border-line-strong bg-surface/60'
           }`}
         >
           {opening ? (
@@ -57,12 +56,13 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
             </p>
           ) : (
             <>
-              <p className="text-base font-medium">Drop a .ufo folder or a .ufoz file</p>
-              <div className="mt-5 flex justify-center gap-3">
+              <p className="text-[15px] font-medium">Drop a .ufo folder or a .ufoz file here</p>
+              <p className="mt-1 text-[13px] text-muted">or open one</p>
+              <div className="mt-4 flex justify-center gap-3">
                 {canPickFolder && (
                   <button
                     type="button"
-                    className="rounded-md bg-accent h-8 px-3 text-[13px] font-medium text-accent-ink hover:brightness-110"
+                    className="h-9 rounded-lg bg-accent px-4 text-[13px] font-medium text-accent-ink hover:brightness-110"
                     onClick={() => onOpen(pickFolder())}
                   >
                     Open .ufo folder…
@@ -70,7 +70,7 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
                 )}
                 <button
                   type="button"
-                  className="rounded-md border border-line h-8 px-3 text-[13px] font-medium hover:bg-raised"
+                  className="h-9 rounded-lg border border-line bg-surface px-4 text-[13px] font-medium hover:bg-raised"
                   onClick={() => fileInput.current?.click()}
                 >
                   Open .ufoz…
@@ -121,6 +121,7 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
           file.
         </p>
       </div>
+      <Credits />
     </div>
   )
 }
@@ -153,5 +154,61 @@ function RuntimeStatus({ runtime }: { runtime: RuntimeState }) {
         />
       </div>
     </div>
+  )
+}
+
+/**
+ * The name, set large, with one of its pairs kerned: "C o" closed up and
+ * marked the way the preview marks a kerning value. IBM Plex Sans has no
+ * kerning for C–o, so the −10 is ours: −0.01 em is −10 units of a 1000 em.
+ */
+function Title() {
+  return (
+    <div className="mb-10 text-center">
+      <h2 className="text-[clamp(2.75rem,8vw,4.25rem)] font-semibold leading-none tracking-[-0.035em] text-ink">
+        Groups{' '}
+        <span className="relative inline-block">
+          C
+          <span
+            aria-hidden
+            className="absolute left-[calc(100%-0.01em)] top-full mt-3 flex -translate-x-1/2 flex-col items-center gap-1 text-[11px] font-medium tracking-normal text-accent"
+          >
+            <span className="h-[3px] w-5 rounded-full bg-accent" />
+            −10
+          </span>
+        </span>
+        <span className="-ml-[0.01em]">ontrol</span>
+      </h2>
+      <p className="mx-auto mt-14 max-w-md text-[15px] leading-relaxed text-muted">
+        Kerning groups and kerning for UFO fonts — sorted, checked and spaced in your browser.
+      </p>
+    </div>
+  )
+}
+
+function Credits() {
+  return (
+    <footer className="mt-10 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-muted">
+      <span>
+        Made by{' '}
+        <a className="text-ink hover:text-accent" href="https://github.com/typedev" target="_blank" rel="noreferrer">
+          Alexander Lubovenko
+        </a>
+      </span>
+      <span aria-hidden>·</span>
+      <span>
+        developed with{' '}
+        <a className="text-ink hover:text-accent" href="https://claude.com/claude-code" target="_blank" rel="noreferrer">
+          Claude Code
+        </a>{' '}
+        by Anthropic
+      </span>
+      <span aria-hidden>·</span>
+      <a className="hover:text-accent" href="https://github.com/typedev/groups-control-web" target="_blank" rel="noreferrer">
+        source
+      </a>
+      <span aria-hidden>·</span>
+      <span>Apache-2.0</span>
+    </footer>
   )
 }

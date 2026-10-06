@@ -10,6 +10,7 @@ import { useDialogs } from './ui/Dialog'
 import { AppearanceMenu, Button } from './ui/controls'
 import { HelpDrawer } from './ui/HelpDrawer'
 import { setHelpContext, toggleHelp, useHelp } from './help'
+import { APP_VERSION, VERSION_TITLE } from './version'
 import { GroupsControl } from './ui/GroupsControl'
 import { StartScreen } from './ui/StartScreen'
 
@@ -213,7 +214,12 @@ export function App() {
   return (
     <div className="flex h-screen flex-col">
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
-        <h1 className="text-[15px] font-semibold tracking-tight">Groups Control</h1>
+        <h1 className="flex items-baseline gap-1.5 text-[15px] font-semibold tracking-tight">
+          Groups Control
+          <span className="text-xs font-normal tabular-nums text-muted" title={VERSION_TITLE}>
+            v{APP_VERSION}
+          </span>
+        </h1>
         {font ? (
           <>
             <span className="min-w-0 truncate text-[13px] text-muted" title={font.name}>

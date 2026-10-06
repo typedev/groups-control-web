@@ -8,7 +8,7 @@ Groups Control from [Font Rover](https://github.com/typedev/font-rover).
 Everything runs locally in the tab (Python in WebAssembly via Pyodide): your
 font files are never uploaded anywhere.
 
-Status: 0.1.0, one `.ufo` folder or `.ufoz` at a time. Designspace and Glyphs
+Status: 0.1, one `.ufo` folder or `.ufoz` at a time. Designspace and Glyphs
 sources come later — see [docs/LATER.md](docs/LATER.md).
 
 ## What it does
@@ -38,6 +38,7 @@ npm run build        # dist/, base path /groups-control-web/
 uv run pytest        # worker Python (py/gcweb) in CPython
 uv run python scripts/fetch_wheels.py   # refresh public/wheels/ after changing pins in pyproject.toml
 uv run python scripts/vendor_sync.py    # re-copy the vendored Font-Rover modules
+uv run python scripts/bump_version.py patch   # release: package.json, pyproject.toml, CHANGELOG
 ```
 
 Docs: [PLAN](docs/PLAN.md) · [DECISIONS](docs/DECISIONS.md) ·

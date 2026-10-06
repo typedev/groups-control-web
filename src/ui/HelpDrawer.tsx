@@ -1,6 +1,7 @@
 // Contextual help: a drawer at the right that follows the panel in use.
 import type { ReactNode } from 'react'
 import { closeHelp, pinHelp, useHelp, type HelpTopic } from '../help'
+import { VERSION_TITLE } from '../version'
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 const MOD = isMac ? '⌘' : 'Ctrl'
@@ -75,6 +76,9 @@ const TOPICS: { id: HelpTopic; label: string; body: ReactNode }[] = [
             [<K>?</K>, 'Show or hide this help'],
           ]}
         />
+        <p className="mt-6 text-xs text-muted">
+          {VERSION_TITLE} · <a className="text-accent hover:underline" href="https://github.com/typedev/groups-control-web/blob/main/CHANGELOG.md" target="_blank" rel="noreferrer">what changed</a>
+        </p>
       </>
     ),
   },
