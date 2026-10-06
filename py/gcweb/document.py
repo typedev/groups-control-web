@@ -82,6 +82,12 @@ class UfoDocument:
             for name in (GROUPS_FILE, KERNING_FILE)
         }
         self.masters = [MasterView(font)]
+        # Set by the opener when the document must not be saved (designspace preview).
+        self.read_only_note: str | None = None
+        # Master index in an open designspace; deltas carry it.
+        self.index = 0
+        # (groups, kerning, glyph texts) the last changed_files() was made from.
+        self._pending_state: tuple | None = None
         self.glyph_edits = GlyphEdits(font)
         self._snapshot_baseline()
 
@@ -91,6 +97,8 @@ class UfoDocument:
 
     @property
     def read_only_reason(self) -> str | None:
+        if self.read_only_note:
+            return self.read_only_note
         if self.format_version[0] < 3:
             return (
                 f"UFO {self.format_version[0]} sources open read-only: saving "
@@ -141,20 +149,25 @@ class UfoDocument:
 
     def take_delta(self) -> dict:
         view = self.master
-        return delta(0, view.groups.take_diff(), view.kerning.take_diff())
+        return delta(self.index, view.groups.take_diff(), view.kerning.take_diff())
 
     def revert(self) -> dict:
         """Revert to file: back to the state of the last open/save."""
         view = self.master
         return delta(
-            0,
+            self.index,
             view.groups.reset_to(self._baseline_groups),
             view.kerning.reset_to(self._baseline_kerning),
         )
 
     def changed_files(self) -> dict[str, bytes | None]:
-        """Plist files to write (None = delete). Unchanged content is skipped."""
+        """Plist files to write (None = delete). Unchanged content is skipped.
+
+        Remembers the state they were made from: mark_saved() takes that as
+        saved, not whatever was edited while the files were being written.
+        """
         view = self.master
+        self._pending_state = (dict(view.groups), dict(view.kerning), self.glyph_edits.texts())
         files: dict[str, bytes | None] = {}
         if dict(view.groups) != self._baseline_groups:
             style = PlistStyle.from_bytes(self._baseline_bytes[GROUPS_FILE])
@@ -193,5 +206,11 @@ class UfoDocument:
 
     def mark_saved(self, files: dict[str, bytes | None]) -> None:
         self._baseline_bytes.update({k: v for k, v in files.items() if k in (GROUPS_FILE, KERNING_FILE)})
-        self._snapshot_baseline()
-        self.glyph_edits.mark_saved()
+        state = getattr(self, "_pending_state", None)
+        if state is None:
+            self._snapshot_baseline()
+            self.glyph_edits.mark_saved()
+        else:
+            self._baseline_groups, self._baseline_kerning, texts = state
+            self.glyph_edits.mark_saved(texts)
+        self._pending_state = None

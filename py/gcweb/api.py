@@ -10,10 +10,12 @@ from __future__ import annotations
 
 import json
 import os
+import time
 import zipfile
 
 from ufo_spacing_lib.groups_core import FontGroupsManager
 
+from gcweb.designspace import Designspace, compare, kern_groups
 from gcweb.document import UfoDocument
 from gcweb.document import delta as delta_of
 from gcweb.export import font_payload, glyph_record
@@ -35,13 +37,41 @@ MUTATING_OPS = {
     "rename_group",
 }
 
+class MasterSession:
+    """One master: its document plus the helpers built on it (lazily, on first use)."""
+
+    def __init__(self, doc: UfoDocument) -> None:
+        self.doc = doc
+        self.manager: FontGroupsManager | None = None
+        self.lang: LangChecker | None = None
+        self.kern: KernEdit | None = None
+
+    def ensure(self) -> None:
+        if self.manager is None:
+            self.manager = FontGroupsManager(self.doc.master)
+            self.lang = LangChecker(self.doc)
+            self.kern = KernEdit(self.doc, self.manager)
+
+
+# Every open master; the globals below point at the current one (_activate).
+_masters: list[MasterSession] = []
+_current = 0
 _doc: UfoDocument | None = None
 _manager: FontGroupsManager | None = None
 _lang: LangChecker | None = None
 _kern: KernEdit | None = None
-_pending_save: dict[str, bytes | None] = {}
+_pending_save: dict[int, dict[str, bytes | None]] = {}
 _pending_import: groups_io.ImportReport | None = None
 _pending_tool = None
+_designspace: Designspace | None = None
+# Which masters a membership edit reaches (designspace only): see EDIT_SCOPES.
+_scope = "compatibleAll"
+
+EDIT_SCOPES = {
+    "compatibleAll": "every master with the same kern groups (the default)",
+    "compatible": "masters with the same kern groups in this discrete subspace (e.g. italic=0)",
+    "master": "this master only",
+}
 
 
 def _require() -> UfoDocument:
@@ -50,13 +80,165 @@ def _require() -> UfoDocument:
     return _doc
 
 
+def _point(index: int) -> None:
+    """Point the current-master globals at a master (no other side effects)."""
+    global _current, _doc, _manager, _lang, _kern
+    session = _masters[index]
+    session.ensure()
+    _current = index
+    _doc, _manager, _lang, _kern = session.doc, session.manager, session.lang, session.kern
+
+
+def _activate(index: int) -> None:
+    global _pending_import, _pending_tool
+    _point(index)
+    # A dry run belongs to the master it was planned on.
+    _pending_import = _pending_tool = None
+
+
 def open_font(path: str) -> str:
-    global _doc, _manager, _lang, _kern
-    _doc = UfoDocument(path)
-    _manager = FontGroupsManager(_doc.master)
-    _lang = LangChecker(_doc)
-    _kern = KernEdit(_doc, _manager)
+    global _masters, _designspace, _scope
+    _designspace, _scope = None, "compatibleAll"
+    _masters = [MasterSession(UfoDocument(path))]
+    _activate(0)
     return json.dumps(_doc.summary())
+
+
+
+
+def open_designspace(path: str, progress=None) -> str:
+    """Open a designspace and every master (glyphs lazily); view the default one.
+
+    `progress(label, done, total)` is called as masters load (a JS callback
+    in the worker; optional).
+    """
+    global _masters, _designspace, _scope
+    _scope = "compatibleAll"
+    report = progress or (lambda *_args: None)
+    report("Reading the designspace", 0, 1)
+    ds = Designspace(path)
+    t0 = time.perf_counter()
+    masters = []
+    total = len(ds.masters)
+    for i, m in enumerate(ds.masters):
+        report(f"Opening master {m['name']}", i, total)
+        doc = UfoDocument(m["path"])
+        doc.index = i
+        masters.append(MasterSession(doc))
+    report("Opening masters", total, total)
+    ds.timings["mastersMs"] = round((time.perf_counter() - t0) * 1000)
+    _designspace, _masters = ds, masters
+    return switch_master(ds.default)
+
+
+def switch_master(index: int) -> str:
+    """Make another master of the open designspace current; nothing is reloaded."""
+    ds = _designspace
+    if ds is None:
+        raise RuntimeError("no designspace is open")
+    if not 0 <= index < len(_masters):
+        raise ValueError(f"no master {index}")
+    t0 = time.perf_counter()
+    _activate(index)
+    summary = _doc.summary()
+    summary["designspace"] = _designspace_info()
+    summary["designspace"]["timings"] = {**ds.timings, "activateMs": round((time.perf_counter() - t0) * 1000)}
+    return json.dumps(summary)
+
+
+def _designspace_info() -> dict:
+    info = _designspace.info(_current, [m.doc.master for m in _masters])
+    info["scope"] = _scope
+    # How many masters each scope reaches now, for the selector's labels.
+    info["reach"] = {scope: len(_targets(scope)) for scope in EDIT_SCOPES}
+    here = _designspace.masters[_current]["discrete"]
+    info["subspace"] = " ".join(f"{k}={_num(v)}" for k, v in here.items())
+    return info
+
+
+def set_edit_scope(scope: str) -> str:
+    """Which masters membership edits reach (EDIT_SCOPES)."""
+    global _scope
+    if scope not in EDIT_SCOPES:
+        raise ValueError(f"unknown edit scope {scope!r}")
+    _scope = scope
+    return json.dumps(_designspace_info() if _designspace else None)
+
+
+def _num(v) -> str:
+    return str(int(v)) if float(v).is_integer() else str(v)
+
+
+def _targets(scope: str | None = None) -> list[int]:
+    """Masters a membership edit reaches (the current scope by default): the current one first."""
+    scope = scope or _scope
+    if _designspace is None or scope == "master":
+        return [_current]
+    groups = [kern_groups(m.doc.master.groups) for m in _masters]
+    here = _designspace.masters[_current]["discrete"]
+    same_space = scope == "compatibleAll"
+    return [_current] + [
+        i
+        for i in range(len(_masters))
+        if i != _current
+        and groups[i] == groups[_current]
+        and (same_space or _designspace.masters[i]["discrete"] == here)
+    ]
+
+
+def _order_only_targets() -> list[int]:
+    """Masters whose kern groups have the current master's members in another order.
+
+    Reach follows the edit scope: the discrete subspace, every subspace, or
+    none for "this master only".
+    """
+    if _designspace is None or _scope == "master":
+        return []
+    ref = kern_groups(_doc.master.groups)
+    here = _designspace.masters[_current]["discrete"]
+    out = []
+    for i, m in enumerate(_masters):
+        if i == _current:
+            continue
+        if _scope == "compatible" and _designspace.masters[i]["discrete"] != here:
+            continue
+        if compare(ref, kern_groups(m.doc.master.groups))["level"] == "order":
+            out.append(i)
+    return out
+
+
+def match_order() -> str:
+    """Copy the current master's member order (key glyphs included) to the
+    masters that differ from it only in order. Kerning is not touched."""
+    origin = _current
+    ref = kern_groups(_require().master.groups)
+    changed = []
+    reordered = 0
+    for i in _order_only_targets():
+        _point(i)
+        groups = _doc.master.groups
+        for name, members in ref.items():
+            if list(groups[name]) != members:
+                groups[name] = tuple(members)
+                reordered += 1
+        _manager.makeReverseGroupsMapping()  # set_font() would also clear the history
+        _doc.master.groups.take_diff()
+        changed.append(i)
+    _point(origin)
+    delta = _doc.take_delta()
+    delta["lang"] = {"set": [], "clear": []}
+    return json.dumps(
+        {
+            "result": {"masters": len(changed), "groups": reordered},
+            "delta": delta,
+            "dirty": _dirty(),
+            **_ds_extra(changed),
+        }
+    )
+
+
+def _dirty() -> bool:
+    return any(m.doc.is_dirty() for m in _masters)
 
 
 def font_data() -> str:
@@ -65,8 +247,9 @@ def font_data() -> str:
 
 
 def close_font() -> str:
-    global _doc, _manager, _lang, _kern
-    _doc = _manager = _lang = _kern = None
+    global _doc, _manager, _lang, _kern, _designspace, _masters, _current
+    _doc = _manager = _lang = _kern = _designspace = None
+    _masters, _current = [], 0
     return "null"
 
 
@@ -91,7 +274,58 @@ def _finish(result) -> str:
     doc = _require()
     delta = doc.take_delta()
     delta["lang"] = _lang_update(delta)
-    return json.dumps({"result": result, "delta": delta, "dirty": doc.is_dirty()})
+    return json.dumps({"result": result, "delta": delta, "dirty": _dirty(), **_ds_extra([])})
+
+
+def _ds_extra(others: list[int]) -> dict:
+    """Designspace part of an edit's answer: masters changed besides the current one."""
+    if _designspace is None:
+        return {}
+    return {"others": others, "designspace": _designspace_info()}
+
+
+def _scoped(fn) -> str:
+    """Run a membership edit in every target master (_targets), all or nothing.
+
+    `fn` works on the current-master globals and returns the result; the
+    current master's result is answered. Each master remaps its own kerning.
+    Other masters' deltas are not sent: the TS mirror drops their cached
+    models and rebuilds them on the next switch (Lang statuses included).
+    """
+    origin = _current
+    targets = _targets()
+    snapshots: dict[int, tuple[dict, dict]] = {}
+    results: dict[int, object] = {}
+    for i in targets:
+        _point(i)
+        view = _doc.master
+        snapshots[i] = (dict(view.groups), dict(view.kerning))
+        try:
+            results[i] = fn()
+        except Exception as err:
+            for j, (groups, kerning) in snapshots.items():
+                _point(j)
+                _doc.master.groups.reset_to(groups)
+                _doc.master.kerning.reset_to(kerning)
+                _manager.makeReverseGroupsMapping()
+            _point(origin)
+            if i == origin:
+                raise
+            raise ValueError(
+                f"{_designspace.masters[i]['name']}: {err} Nothing was changed."
+            ) from err
+    changed = []
+    for i in targets[1:]:
+        _point(i)
+        groups_diff, kerning_diff = _doc.master.groups.take_diff(), _doc.master.kerning.take_diff()
+        if groups_diff != ({}, []) or kerning_diff != ({}, []):
+            changed.append(i)
+    _point(origin)
+    delta = _doc.take_delta()
+    delta["lang"] = _lang_update(delta)
+    return json.dumps(
+        {"result": results[origin], "delta": delta, "dirty": _dirty(), **_ds_extra(changed)}
+    )
 
 
 def _replace_all(groups: dict, kerning: dict, result) -> str:
@@ -101,10 +335,10 @@ def _replace_all(groups: dict, kerning: dict, result) -> str:
     """
     doc = _require()
     view = doc.master
-    delta = delta_of(0, view.groups.reset_to(groups), view.kerning.reset_to(kerning))
+    delta = delta_of(doc.index, view.groups.reset_to(groups), view.kerning.reset_to(kerning))
     _manager.makeReverseGroupsMapping()
     delta["lang"] = _lang_update(delta)
-    return json.dumps({"result": result, "delta": delta, "dirty": doc.is_dirty()})
+    return json.dumps({"result": result, "delta": delta, "dirty": _dirty(), **_ds_extra([])})
 
 
 def op(name: str, kwargs_json: str) -> str:
@@ -155,6 +389,10 @@ def add_glyphs(group: str, glyphs_json: str, check_kerning: bool, index: int = -
     Glyphs already in a group on this side are refused and reported in
     result["grouped"] — never moved.
     """
+    return _scoped(lambda: _add_glyphs(group, glyphs_json, check_kerning, index))
+
+
+def _add_glyphs(group: str, glyphs_json: str, check_kerning: bool, index: int) -> dict:
     free, grouped = _split_grouped(json.loads(glyphs_json), _prefix(group))
     added: list[str] = []
     if free:
@@ -163,11 +401,15 @@ def add_glyphs(group: str, glyphs_json: str, check_kerning: bool, index: int = -
         added = [g for g in _require().master.groups.get(group, ()) if g not in before]
         if index >= 0 and added:
             _place(group, added, index)
-    return _finish({"added": added, "grouped": grouped})
+    return {"added": added, "grouped": grouped}
 
 
 def create_group(prefix: str, short_name: str, glyphs_json: str, check_kerning: bool) -> str:
     """New group from the free glyphs; refuses a bad name or no free glyphs."""
+    return _scoped(lambda: _create_group(prefix, short_name, glyphs_json, check_kerning))
+
+
+def _create_group(prefix: str, short_name: str, glyphs_json: str, check_kerning: bool) -> dict:
     if prefix not in (KERN1, KERN2):
         raise ValueError(f"bad side prefix {prefix!r}")
     problem = name_problem(short_name, prefix, _require().master.groups)
@@ -178,20 +420,26 @@ def create_group(prefix: str, short_name: str, glyphs_json: str, check_kerning: 
     if free:
         group = prefix + short_name
         _manager.add_glyphs_to_group(group, free, check_kerning=check_kerning)
-    return _finish({"group": group, "added": free, "grouped": grouped})
+    return {"group": group, "added": free, "grouped": grouped}
 
 
 def remove_glyphs(group: str, glyphs_json: str, check_kerning: bool) -> str:
+    return _scoped(lambda: _remove_glyphs(group, glyphs_json, check_kerning))
+
+
+def _remove_glyphs(group: str, glyphs_json: str, check_kerning: bool) -> dict:
     glyphs = [g for g in json.loads(glyphs_json) if g in _require().master.groups.get(group, ())]
     if glyphs:
         _manager.remove_glyphs_from_group(group, glyphs, check_kerning=check_kerning)
-    return _finish({"removed": glyphs})
+    return {"removed": glyphs}
 
 
 def delete_group(group: str, check_kerning: bool) -> str:
     """With Keep Kerning the group's pairs become member exceptions; its own pairs always go."""
-    _manager.delete_group(group, check_kerning=check_kerning)
-    return _finish(None)
+    def run():
+        _manager.delete_group(group, check_kerning=check_kerning)
+
+    return _scoped(run)
 
 
 def rename_group(old: str, new_short: str) -> str:
@@ -201,11 +449,15 @@ def rename_group(old: str, new_short: str) -> str:
     new_short = new_short.strip()
     if prefix + new_short == old:
         return _finish({"group": old})
-    problem = name_problem(new_short, prefix, _require().master.groups)
-    if problem:
-        raise ValueError(problem)
-    _manager.rename_group(old, prefix + new_short, check_kerning=True)
-    return _finish({"group": prefix + new_short})
+
+    def run():
+        problem = name_problem(new_short, prefix, _require().master.groups)
+        if problem:
+            raise ValueError(problem)
+        _manager.rename_group(old, prefix + new_short, check_kerning=True)
+        return {"group": prefix + new_short}
+
+    return _scoped(run)
 
 
 def delete_pairs(pairs_json: str) -> str:
@@ -388,18 +640,31 @@ def move_in_group(group: str, glyphs_json: str, index: int) -> str:
     a target that is itself moved falls through to the next kept member.
     Reordering never touches kerning.
     """
-    view = _require().master
-    members = list(view.groups[group])
-    moving = [g for g in json.loads(glyphs_json) if g in members]
-    kept = [g for g in members if g not in moving]
-    anchor = next((g for g in members[index:] if g not in moving), None)
-    at = kept.index(anchor) if anchor is not None else len(kept)
-    view.groups[group] = tuple(kept[:at] + moving + kept[at:])
-    _manager.makeReverseGroupsMapping()  # set_font() would also clear the history
-    return _finish(None)
+    def run():
+        view = _require().master
+        members = list(view.groups[group])
+        moving = [g for g in json.loads(glyphs_json) if g in members]
+        kept = [g for g in members if g not in moving]
+        anchor = next((g for g in members[index:] if g not in moving), None)
+        at = kept.index(anchor) if anchor is not None else len(kept)
+        view.groups[group] = tuple(kept[:at] + moving + kept[at:])
+        _manager.makeReverseGroupsMapping()  # set_font() would also clear the history
+
+    return _scoped(run)
 
 
 def revert() -> str:
+    """Revert to file — every master of a designspace; answers the current one's delta."""
+    origin = _current
+    others = []
+    for i, m in enumerate(_masters):
+        if i != origin and m.doc.is_dirty():
+            _point(i)
+            _doc.revert()
+            _manager.makeReverseGroupsMapping()
+            _doc.glyph_edits.revert()
+            others.append(i)
+    _point(origin)
     doc = _require()
     delta = doc.revert()
     _manager.makeReverseGroupsMapping()
@@ -407,6 +672,7 @@ def revert() -> str:
     names = doc.glyph_edits.revert()
     if names:
         delta["glyphs"] = {n: glyph_record(doc, n) for n in names}
+    delta.update(_ds_extra(others))
     return json.dumps(delta)
 
 
@@ -426,8 +692,31 @@ def margin_nudge(name: str, side: str, delta: float) -> str:
 
 
 def _check_writable(doc: UfoDocument) -> None:
-    if doc.read_only_reason:
-        raise RuntimeError(doc.read_only_reason)
+    for m in _masters or [MasterSession(doc)]:
+        if m.doc.read_only_reason:
+            raise RuntimeError(m.doc.read_only_reason)
+
+
+def _master_root(index: int) -> str:
+    """A master's folder relative to the designspace's folder (the drop root)."""
+    base = os.path.dirname(_designspace.path)
+    return os.path.relpath(_masters[index].doc.path, base).replace(os.sep, "/")
+
+
+def _pending_files() -> dict[str, bytes | None]:
+    """What saving writes, keyed by path: UFO-relative for one UFO,
+    designspace-folder-relative (`Bold.ufo/groups.plist`) for a designspace.
+    Also sets _pending_save (per master) for mark_saved()."""
+    global _pending_save
+    if _designspace is None:
+        _pending_save = {0: _require().changed_files()}
+        return dict(_pending_save[0])
+    _pending_save = {i: m.doc.changed_files() for i, m in enumerate(_masters)}
+    return {
+        f"{_master_root(i)}/{name}": data
+        for i, files in _pending_save.items()
+        for name, data in files.items()
+    }
 
 
 def changed_files(out_dir: str) -> str:
@@ -436,13 +725,10 @@ def changed_files(out_dir: str) -> str:
     Returns [{"name", "path" | null}] — path null means delete the file.
     Call mark_saved() once the files are on disk.
     """
-    global _pending_save
-    doc = _require()
-    _check_writable(doc)
-    _pending_save = doc.changed_files()
+    _check_writable(_require())
     os.makedirs(out_dir, exist_ok=True)
     out = []
-    for name, data in _pending_save.items():
+    for name, data in _pending_files().items():
         path = None
         if data is not None:
             path = os.path.join(out_dir, name)
@@ -459,10 +745,11 @@ def build_ufoz(out_path: str) -> str:
     Every entry except groups.plist / kerning.plist is copied unchanged from
     the source (.ufoz archive or .ufo folder). Call mark_saved() afterwards.
     """
-    global _pending_save
     doc = _require()
     _check_writable(doc)
-    _pending_save = doc.changed_files()
+    if _designspace is not None:
+        raise RuntimeError("a designspace is saved into its folder or as a zip of the changes")
+    _pending_files()
     current = doc.current_files()
     os.makedirs(os.path.dirname(out_path), exist_ok=True)
     with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as out:
@@ -504,13 +791,51 @@ def _zip_root(src: zipfile.ZipFile) -> str:
     return names[0].split("/")[0]
 
 
-def mark_saved() -> str:
-    """The files from the last changed_files()/build_ufoz() are on disk."""
+def build_changes_zip(out_path: str) -> str:
+    """Designspace without a writable folder: a zip of just the changed files,
+    at their paths inside the designspace's folder (unzip there to apply).
+
+    Files to delete cannot travel in a zip; they are returned for the UI to
+    name. Call mark_saved() afterwards.
+    """
+    _check_writable(_require())
+    if _designspace is None:
+        raise RuntimeError("no designspace is open")
+    files = _pending_files()
+    os.makedirs(os.path.dirname(out_path), exist_ok=True)
+    with zipfile.ZipFile(out_path, "w", zipfile.ZIP_DEFLATED) as out:
+        for name, data in sorted(files.items()):
+            if data is not None:
+                out.writestr(name, data)
+    return json.dumps(
+        {
+            "path": out_path,
+            "written": sorted(n for n, d in files.items() if d is not None),
+            "deleted": sorted(n for n, d in files.items() if d is None),
+        }
+    )
+
+
+def mark_saved(written_json: str = "null") -> str:
+    """The files from the last changed_files()/build_ufoz()/build_changes_zip() are on disk.
+
+    `written_json`: the names actually written when writing stopped part way
+    (null = all). A master counts as saved only when all its files were
+    written; the others stay dirty, so the next save writes them again.
+    """
     global _pending_save
-    _require().mark_saved(_pending_save)
+    written = json.loads(written_json)
+    unsaved = []
+    for i, files in _pending_save.items():
+        names = {(f"{_master_root(i)}/{n}" if _designspace else n): n for n in files}
+        if written is None or all(full in written for full in names):
+            (_masters[i].doc if _masters else _require()).mark_saved(files)
+        else:
+            unsaved.append(i)
     _pending_save = {}
-    return "null"
+    return json.dumps({"unsaved": unsaved, "dirty": _dirty()})
 
 
 def has_changes() -> str:
-    return json.dumps(_require().is_dirty())
+    _require()
+    return json.dumps(_dirty())

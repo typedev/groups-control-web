@@ -15,6 +15,7 @@ let current: RuntimeState = { status: 'loading', stage: 'runtime', fraction: 0 }
 const subscribers = new Set<(s: RuntimeState) => void>()
 
 python.onEvent((e) => {
+  if (e.type === 'openProgress') return
   if (e.type === 'progress') current = { status: 'loading', stage: e.stage, fraction: e.fraction }
   else if (e.type === 'ready') current = { status: 'ready', versions: e.versions, ms: e.ms }
   else current = { status: 'failed', error: e.error }

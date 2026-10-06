@@ -186,6 +186,39 @@ export function KeepKerningSwitch({ on, onChange, onHelp }: { on: boolean; onCha
   )
 }
 
+/**
+ * Designspace edit scope: as hard to miss as Keep Kerning. Accent for the
+ * default (compatible masters), careful colours for any other choice.
+ */
+export function ScopeSelect({
+  careful,
+  className = '',
+  children,
+  ...props
+}: SelectHTMLAttributes<HTMLSelectElement> & { careful: boolean }) {
+  return (
+    <span className={`relative inline-flex ${className}`}>
+      <select
+        className={`h-8 w-full min-w-0 appearance-none truncate rounded-lg border pl-2.5 pr-7 text-[13px] font-semibold transition-colors ${
+          careful ? 'border-careful/50 bg-careful-soft text-careful' : 'border-accent/40 bg-accent-soft text-accent'
+        }`}
+        {...props}
+      >
+        {children}
+      </select>
+      <svg
+        className={`pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 ${careful ? 'text-careful' : 'text-accent'}`}
+        width="10"
+        height="10"
+        viewBox="0 0 10 10"
+        aria-hidden
+      >
+        <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    </span>
+  )
+}
+
 /** A small "?" that opens the help drawer on one topic. */
 export function HelpButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
@@ -281,6 +314,34 @@ export function AppearanceMenu() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+export type Progress = { label: string; done: number; total: number }
+
+/** A thin bar with a caption; total 0 = unknown length (pulsing full bar). */
+export function ProgressBar({ progress, className = '' }: { progress: Progress; className?: string }) {
+  const { label, done, total } = progress
+  const known = total > 0
+  return (
+    <div className={className} aria-live="polite">
+      <div className="flex justify-between gap-3 text-xs text-muted">
+        <span className="truncate">{label}…</span>
+        {known && <span className="tabular-nums">{done} / {total}</span>}
+      </div>
+      <div
+        className="mt-1 h-1 overflow-hidden rounded bg-raised"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={known ? total : undefined}
+        aria-valuenow={known ? done : undefined}
+      >
+        <div
+          className={`h-full bg-accent ${known ? 'transition-[width] duration-150' : 'animate-pulse'}`}
+          style={{ width: known ? `${Math.max(3, (done / total) * 100)}%` : '100%' }}
+        />
+      </div>
     </div>
   )
 }

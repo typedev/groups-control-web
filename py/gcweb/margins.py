@@ -56,8 +56,13 @@ class GlyphEdits:
     def dirty(self) -> bool:
         return any(t != self._base[n] for n, t in self._text.items())
 
-    def mark_saved(self) -> None:
-        self._base.update(self._text)
+    def texts(self) -> dict[str, str]:
+        """Current GLIF text of every touched glyph (a snapshot for saving)."""
+        return dict(self._text)
+
+    def mark_saved(self, texts: dict[str, str] | None = None) -> None:
+        """Take `texts` (default: the current ones) as what is on disk."""
+        self._base.update(self._text if texts is None else texts)
 
     def revert(self) -> list[str]:
         """Put touched glyphs back to their last saved text; returns their names."""

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { checkFolder, classifyName, InputError, shouldSkip } from './files'
+import { checkFolder, classifyName, designspaceSources, InputError, normalizeRelative, shouldSkip } from './files'
 
 describe('classifyName', () => {
   it('recognises UFO folders and archives', () => {
@@ -26,5 +26,28 @@ describe('checkFolder', () => {
   it('requires metainfo.plist at the root', () => {
     expect(() => checkFolder('A.ufo', ['metainfo.plist', 'glyphs/A_.glif'])).not.toThrow()
     expect(() => checkFolder('A.ufo', ['glyphs/metainfo.plist'])).toThrow(InputError)
+  })
+})
+
+describe('designspaceSources', () => {
+  it('lists source UFOs in order, once, with entities decoded', () => {
+    const xml = `<designspace format="5.0"><sources>
+      <source filename="A.ufo" name="a"><location/></source>
+      <source name='b' filename='masters/B&amp;C.ufo'/>
+      <source filename="A.ufo" layer="support"/>
+      <source name="no file"/>
+    </sources></designspace>`
+    expect(designspaceSources(xml)).toEqual(['A.ufo', 'masters/B&C.ufo'])
+  })
+})
+
+describe('normalizeRelative', () => {
+  it('resolves dots and refuses paths leaving the root', () => {
+    expect(normalizeRelative('A.ufo')).toBe('A.ufo')
+    expect(normalizeRelative('./m/../A.ufo/')).toBe('A.ufo')
+    expect(normalizeRelative('m\\A.ufo')).toBe('m/A.ufo')
+    expect(normalizeRelative('../A.ufo')).toBeNull()
+    expect(normalizeRelative('/abs/A.ufo')).toBeNull()
+    expect(normalizeRelative('C:/A.ufo')).toBeNull()
   })
 })

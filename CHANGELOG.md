@@ -5,6 +5,38 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Designspaces: drop a folder holding a `.designspace` (pick one when there
+  are several); only the UFOs it references are read. The default master
+  opens first; a header dropdown switches the current master and a badge
+  reports kern-group compatibility across masters (within the current
+  discrete subspace).
+- All masters of a designspace stay open in the worker: switching back to a
+  master already shown is instant.
+- Designspace group edits reach every master with the same kern groups,
+  upright and italic alike; a header selector narrows this to the current
+  discrete subspace (e.g. italic=0) or to the current master. Its labels
+  count the masters reached ("6 of 18"). Each master remaps its own
+  kerning; a failure in any master changes nothing. Revert covers every
+  master.
+- Saving a designspace writes the changed files of every changed master
+  into the dropped folder (Chrome, Edge); other browsers download a .zip of
+  just the changed files to unzip into the designspace folder. Saving many
+  files shows a progress bar; if writing stops part way, the dialog says how
+  many files were written and the masters not written in full stay unsaved.
+- The app is frozen while saving (no clicks or keys reach it). Edits that
+  still slip in between preparing and writing the files are never counted
+  as saved: what is marked saved is the state the files were made from.
+- **Match order** (designspace header): when masters differ from the current
+  one only in member order, one click copies its order (key glyphs
+  included) to them, within the edit scope's reach. Kerning is untouched.
+- The designspace edit scope is coloured like Keep Kerning (accent for all
+  compatible masters, careful colours otherwise); with a designspace the
+  header shows its file name and the master dropdown instead of the family
+  and style.
+- Progress bar while a font or designspace opens (reading files, opening
+  each master, preparing outlines) and while switching to a new master.
+
 ### Changed
 - Start screen: the −10 kerning marker sits closer under the title.
 

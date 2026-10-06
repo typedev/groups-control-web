@@ -1,5 +1,6 @@
 import { useRef, useState, type DragEvent } from 'react'
-import { canPickFolder, fromDrop, fromFile, pickFolder, type FontInput } from '../files'
+import { canPickFolder, fromDrop, fromFile, pickFolder, type ChooseDesignspace, type FontInput, type ReadProgress } from '../files'
+import { ProgressBar, type Progress } from './controls'
 import type { RuntimeState } from '../runtime'
 import type { StoredSession } from '../session'
 
@@ -14,12 +15,16 @@ type Props = {
   opening: string | null
   error: string | null
   onOpen: (pending: Promise<FontInput | null>) => void
+  chooseDesignspace: ChooseDesignspace
+  /** Opening progress (reading files, then the worker); null when idle. */
+  progress: Progress | null
+  onProgress: ReadProgress
   stored: StoredSession | null
   onRestore: () => void
   onDiscard: () => void
 }
 
-export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore, onDiscard }: Props) {
+export function StartScreen({ runtime, opening, error, onOpen, chooseDesignspace, progress, onProgress, stored, onRestore, onDiscard }: Props) {
   const [over, setOver] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -27,7 +32,7 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
     e.preventDefault()
     setOver(false)
     // fromDrop must run synchronously inside the event.
-    onOpen(fromDrop(e.dataTransfer))
+    onOpen(fromDrop(e.dataTransfer, chooseDesignspace, onProgress))
   }
 
   return (
@@ -49,14 +54,17 @@ export function StartScreen({ runtime, opening, error, onOpen, stored, onRestore
             over ? 'border-accent bg-accent-soft' : 'border-line-strong bg-surface/60'
           }`}
         >
-          {opening ? (
-            <p className="text-sm">
-              Opening <span className="font-medium">{opening}</span>
-              {runtime.status === 'loading' ? ' — waiting for Python…' : '…'}
-            </p>
+          {opening || progress ? (
+            <>
+              <p className="text-sm">
+                Opening{opening && <span className="font-medium"> {opening}</span>}
+                {opening && runtime.status === 'loading' ? ' — waiting for Python…' : '…'}
+              </p>
+              {progress && <ProgressBar progress={progress} className="mx-auto mt-3 max-w-sm text-left" />}
+            </>
           ) : (
             <>
-              <p className="text-[15px] font-medium">Drop a .ufo folder or a .ufoz file here</p>
+              <p className="text-[15px] font-medium">Drop a .ufo folder, a .ufoz file or a designspace folder here</p>
               <p className="mt-1 text-[13px] text-muted">or open one</p>
               <div className="mt-4 flex justify-center gap-3">
                 {canPickFolder && (

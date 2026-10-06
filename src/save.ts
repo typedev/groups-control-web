@@ -6,31 +6,67 @@ type PermissionHandle = FileSystemDirectoryHandle & {
   requestPermission(o: { mode: 'readwrite' }): Promise<PermissionState>
 }
 
-/** Must run from a user gesture (Save click / Cmd+S) for the permission prompt. */
-export async function writeToFolder(handle: FileSystemDirectoryHandle, files: SavedFile[]): Promise<void> {
+/** Writing stopped part way: what reached the disk, and the file that failed. */
+export class WriteError extends Error {
+  constructor(
+    readonly written: string[],
+    readonly failed: string,
+    cause: unknown,
+  ) {
+    super(`Could not write ${failed}: ${cause instanceof Error ? cause.message : String(cause)}`)
+  }
+}
+
+/**
+ * Must run from a user gesture (Save click / Cmd+S) for the permission prompt.
+ * Throws WriteError when a file fails, naming what was already written.
+ */
+export async function writeToFolder(
+  handle: FileSystemDirectoryHandle,
+  files: SavedFile[],
+  onProgress?: (done: number, total: number) => void,
+): Promise<void> {
   const h = handle as PermissionHandle
   if ((await h.queryPermission({ mode: 'readwrite' })) !== 'granted') {
     if ((await h.requestPermission({ mode: 'readwrite' })) !== 'granted') {
       throw new Error('Writing to the folder was not allowed.')
     }
   }
-  for (const file of files) {
-    // Paths are UFO-relative ("groups.plist", "glyphs/A_.glif").
-    const parts = file.name.split('/')
-    const leaf = parts.pop()!
-    let dir = handle
-    for (const part of parts) dir = await dir.getDirectoryHandle(part)
-    if (file.bytes) {
-      const fh = await dir.getFileHandle(leaf, { create: true })
-      const writable = await fh.createWritable()
-      await writable.write(file.bytes)
-      await writable.close()
-    } else {
-      await dir.removeEntry(leaf).catch((e: DOMException) => {
-        if (e.name !== 'NotFoundError') throw e
-      })
+  // Paths are UFO-relative ("groups.plist", "glyphs/A_.glif") or, for a
+  // designspace, relative to its folder ("Bold.ufo/groups.plist").
+  const dirs = new Map<string, FileSystemDirectoryHandle>([['', handle]])
+  const dirOf = async (path: string[]): Promise<FileSystemDirectoryHandle> => {
+    const key = path.join('/')
+    let dir = dirs.get(key)
+    if (!dir) {
+      dir = await (await dirOf(path.slice(0, -1))).getDirectoryHandle(path[path.length - 1])
+      dirs.set(key, dir)
     }
+    return dir
   }
+  const written: string[] = []
+  for (const [i, file] of files.entries()) {
+    onProgress?.(i, files.length)
+    try {
+      const parts = file.name.split('/')
+      const leaf = parts.pop()!
+      const dir = await dirOf(parts)
+      if (file.bytes) {
+        const fh = await dir.getFileHandle(leaf, { create: true })
+        const writable = await fh.createWritable()
+        await writable.write(file.bytes)
+        await writable.close()
+      } else {
+        await dir.removeEntry(leaf).catch((e: DOMException) => {
+          if (e.name !== 'NotFoundError') throw e
+        })
+      }
+    } catch (err) {
+      throw new WriteError(written, file.name, err)
+    }
+    written.push(file.name)
+  }
+  onProgress?.(files.length, files.length)
 }
 
 export function ufozName(fontName: string): string {

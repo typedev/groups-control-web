@@ -26,6 +26,8 @@ Suggested order: designspace first (reuses the UFO loader), then Glyphs.
 
 ## 2. Glyphs sources (`.glyphs` v2/v3, `.glyphspackage`)
 
+Parked; the staged work plan is in [GLYPHS_PLAN.md](GLYPHS_PLAN.md).
+
 Desktop reference: `docs/CLAUDE_GLYPHS_IMPORT.md` in Font-Rover. Note that the
 desktop **converts** Glyphs → UFO with glyphsLib; the web version is meant to
 edit the source in place.

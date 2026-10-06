@@ -272,8 +272,9 @@ const TOPICS: { id: HelpTopic; label: string; body: ReactNode }[] = [
           items={[
             <><b>Save</b> writes the changed files back into the folder you opened (Chrome, Edge): only groups.plist, kerning.plist and edited glyphs, keeping their formatting.</>,
             <><b>Download .ufoz</b> when the font came as a .ufoz or the browser cannot write into folders.</>,
+            <>A <b>designspace</b> saves every changed master into its folder; browsers that cannot write into folders <b>Download changes</b>: a .zip of just the changed files, to unzip into the designspace folder.</>,
             <><b>Revert</b> goes back to the last save. There is no undo yet.</>,
-            'Unsaved edits are kept in this browser: after a reload, Restore brings them back.',
+            'Unsaved edits are kept in this browser: after a reload, Restore brings them back (not for designspaces yet).',
             <>Groups → <b>Import / Export</b> exchanges groups as text (KernTool4 format). Tools runs Font-Rover's group scripts; each shows its plan first.</>,
           ]}
         />

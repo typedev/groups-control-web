@@ -6,10 +6,52 @@ import type { PreviewSubject, PreviewToken } from '../model/preview'
 export type FontFile = { path: string; bytes: ArrayBuffer }
 
 export type OpenInput = {
-  /** Folder name (`X.ufo`) or archive name (`X.ufoz`). */
+  /** Folder name (`X.ufo`), archive name (`X.ufoz`) or `X.designspace`. */
   name: string
-  kind: 'folder' | 'ufoz'
+  kind: 'folder' | 'ufoz' | 'designspace'
   files: FontFile[]
+  /** designspace: its path relative to the drop root (`Project/X.designspace`). */
+  main?: string
+}
+
+export type DesignspaceMaster = {
+  name: string
+  filename: string
+  location: Record<string, number>
+  discrete: Record<string, number>
+  isDefault: boolean
+  pairs: number
+  /** Masters with identical kern groups share a set index. */
+  set: number
+  groups: number
+  vsCurrent: {
+    level: 'identical' | 'order' | 'different'
+    onlyHere: number
+    onlyThere: number
+    members: number
+    order: number
+    sample: string[]
+  }
+}
+
+/** Which masters a membership edit reaches (py/gcweb/api.py EDIT_SCOPES); compatibleAll is the default. */
+export type EditScope = 'compatible' | 'compatibleAll' | 'master'
+
+export type DesignspaceInfo = {
+  scope: EditScope
+  /** Masters each scope reaches now (the current one included). */
+  reach: Record<EditScope, number>
+  /** The current master's discrete location, e.g. "italic=0" ("" without discrete axes). */
+  subspace: string
+  file: string
+  axes: { name: string; discrete: boolean }[]
+  masters: DesignspaceMaster[]
+  current: number
+  sets: number
+  compatibleInSubspace: number
+  subspaceSize: number
+  layerSources: string[]
+  timings: Record<string, number>
 }
 
 export type FontSummary = {
@@ -26,9 +68,18 @@ export type FontSummary = {
   readOnlyReason: string | null
   /** The font carries com.typedev.spacing.metricsRules (ignored). */
   hasMetricsRules: boolean
+  /** Set when the font is a master of an open designspace. */
+  designspace?: DesignspaceInfo
 }
 
-export type OpResult<R = unknown> = { result: R; delta: Delta; dirty: boolean }
+/** Designspace part of an edit's answer. */
+export type DesignspaceChange = {
+  /** Masters changed besides the current one (their cached mirrors are stale). */
+  others?: number[]
+  designspace?: DesignspaceInfo
+}
+
+export type OpResult<R = unknown> = { result: R; delta: Delta; dirty: boolean } & DesignspaceChange
 
 /** Glyphs refused because they are already in a group on this side: [glyph, group]. */
 export type Refused = [glyph: string, group: string][]
@@ -54,6 +105,7 @@ export type SavedFile = { name: string; bytes: ArrayBuffer | null }
 export type Api = {
   open: (input: OpenInput) => FontSummary
   fontData: () => FontData
+  switchMaster: (index: number) => FontSummary
   close: () => null
   addGlyphs: (group: string, glyphs: string[], keepKerning: boolean, index: number) => OpResult<{ added: string[]; grouped: Refused }>
   createGroup: (prefix: string, shortName: string, glyphs: string[], keepKerning: boolean) => OpResult<{ group: string | null; added: string[]; grouped: Refused }>
@@ -62,7 +114,10 @@ export type Api = {
   renameGroup: (group: string, newShortName: string) => OpResult<{ group: string }>
   move: (group: string, glyphs: string[], index: number) => OpResult<null>
   deletePairs: (pairs: [string, string][]) => OpResult<{ removed: [string, string][] }>
-  revert: () => Delta
+  revert: () => Delta & DesignspaceChange
+  setEditScope: (scope: EditScope) => DesignspaceInfo | null
+  /** Copy the current master's member order to masters differing only in order. */
+  matchOrder: () => OpResult<{ masters: number; groups: number }>
   previewLine: (subject: PreviewSubject) => PreviewToken[]
   previewPairs: (pairs: [string, string][], expanded: boolean, perRow: number) => PreviewToken[][]
   marginNudge: (glyph: string, side: 'left' | 'right', delta: number) => OpResult<{ changed: string[] }>
@@ -85,7 +140,10 @@ export type Api = {
   changedFiles: () => SavedFile[]
   /** The whole font as .ufoz bytes; then call markSaved. */
   buildUfoz: (name: string) => ArrayBuffer
-  markSaved: () => null
+  /** Designspace without a writable folder: the changed files as a zip; then markSaved. */
+  buildChangesZip: (name: string) => { bytes: ArrayBuffer; written: string[]; deleted: string[] }
+  /** written: names actually written when a save stopped part way (null = all). */
+  markSaved: (written?: string[] | null) => { unsaved: number[]; dirty: boolean }
 }
 
 export type Method = keyof Api
@@ -108,5 +166,7 @@ export type WorkerEvent =
   | { type: 'progress'; stage: LoadStage; fraction: number }
   | { type: 'ready'; versions: Record<string, string>; ms: number }
   | { type: 'fatal'; error: string }
+  /** Opening a font: what is being done; total 0 = unknown length. */
+  | { type: 'openProgress'; label: string; done: number; total: number }
 
 export type WorkerMessage = Response | WorkerEvent

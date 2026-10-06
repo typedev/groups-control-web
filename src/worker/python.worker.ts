@@ -66,13 +66,21 @@ json.dumps({"python": sys.version.split()[0], "pyodide": "${PYODIDE_VERSION}",
 
 const FONT_ROOT = '/fonts'
 
+const openProgress = (label: string, done: number, total: number) =>
+  post({ type: 'openProgress', label, done, total })
+
 function open(input: OpenInput): unknown {
   py.runPython(`import shutil; shutil.rmtree('${FONT_ROOT}', ignore_errors=True)`)
   py.FS.mkdirTree(FONT_ROOT)
-  for (const file of input.files) {
+  const total = input.files.length
+  input.files.forEach((file, i) => {
+    if (i % 500 === 0) openProgress('Handing the files to Python', i, total)
     const full = `${FONT_ROOT}/${file.path}`
     py.FS.mkdirTree(full.slice(0, full.lastIndexOf('/')))
     py.FS.writeFile(full, new Uint8Array(file.bytes))
+  })
+  if (input.kind === 'designspace') {
+    return JSON.parse(api.open_designspace(`${FONT_ROOT}/${input.main}`, openProgress))
   }
   return JSON.parse(api.open_font(`${FONT_ROOT}/${input.name}`))
 }
@@ -96,11 +104,22 @@ function buildUfoz(name: string): { value: ArrayBuffer; transfer: Transferable[]
   return { value, transfer: [value] }
 }
 
+function buildChangesZip(name: string): Transferring {
+  py.runPython(`import shutil; shutil.rmtree('${OUT_DIR}', ignore_errors=True)`)
+  const out = JSON.parse(api.build_changes_zip(`${OUT_DIR}/${name}`)) as { path: string; written: string[]; deleted: string[] }
+  const bytes = py.FS.readFile(out.path).slice().buffer as ArrayBuffer
+  return { value: { bytes, written: out.written, deleted: out.deleted }, transfer: [bytes] }
+}
+
 type Transferring = { value: unknown; transfer: Transferable[] }
 
 const handlers: Record<string, (...params: never[]) => unknown> = {
   open,
-  fontData: () => JSON.parse(api.font_data()),
+  fontData: () => {
+    openProgress('Preparing outlines', 0, 0)
+    return JSON.parse(api.font_data())
+  },
+  switchMaster: (index: number) => JSON.parse(api.switch_master(index)),
   close: () => JSON.parse(api.close_font()),
   addGlyphs: (group: string, glyphs: string[], keep: boolean, index: number) =>
     JSON.parse(api.add_glyphs(group, JSON.stringify(glyphs), keep, index)),
@@ -133,12 +152,15 @@ const handlers: Record<string, (...params: never[]) => unknown> = {
   move: (group: string, glyphs: string[], index: number) =>
     JSON.parse(api.move_in_group(group, JSON.stringify(glyphs), index)),
   revert: () => JSON.parse(api.revert()),
+  setEditScope: (scope: string) => JSON.parse(api.set_edit_scope(scope)),
+  matchOrder: () => JSON.parse(api.match_order()),
   changedFiles: (): Transferring => changedFiles(),
   buildUfoz: (name: string): Transferring => buildUfoz(name),
-  markSaved: () => JSON.parse(api.mark_saved()),
+  buildChangesZip: (name: string): Transferring => buildChangesZip(name),
+  markSaved: (written?: string[] | null) => JSON.parse(api.mark_saved(JSON.stringify(written ?? null))),
 }
 
-const TRANSFERRING = new Set(['changedFiles', 'buildUfoz'])
+const TRANSFERRING = new Set(['changedFiles', 'buildUfoz', 'buildChangesZip'])
 
 /** Python errors carry a full traceback; the UI gets the last line. */
 function describe(err: unknown): { error: string; detail?: string } {
