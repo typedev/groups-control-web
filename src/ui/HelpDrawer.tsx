@@ -56,9 +56,17 @@ const TOPICS: { id: HelpTopic; label: string; body: ReactNode }[] = [
     body: (
       <>
         <P>
-          Groups Control edits the kerning groups and the kerning of a UFO. Everything runs in this tab; the font never
-          leaves your computer.
+          Groups Control edits the kerning groups and the kerning of a UFO or of a designspace's masters. Everything
+          runs in this tab; the font never leaves your computer, and after the first visit it starts without a
+          network.
         </P>
+        <H>Opening</H>
+        <L
+          items={[
+            <>Drop a <b>.ufo</b> folder or a <b>.ufoz</b> file, or a folder with a <b>.designspace</b> and its masters (with several, you pick one). Only the UFOs the designspace names are read.</>,
+            <><b>Open folder…</b> (Chrome, Edge) takes a .ufo folder or a designspace folder and lets Save write into it.</>,
+          ]}
+        />
         <H>The workspace</H>
         <L
           items={[
@@ -72,7 +80,7 @@ const TOPICS: { id: HelpTopic; label: string; body: ReactNode }[] = [
         <H>Everywhere</H>
         <Keys
           rows={[
-            [<><K>{MOD}</K>{plus}<K>S</K></>, 'Save, or download the .ufoz'],
+            [<><K>{MOD}</K>{plus}<K>S</K></>, 'Save, or download (.ufoz, or the changes of a designspace)'],
             [<K>?</K>, 'Show or hide this help'],
           ]}
         />
@@ -261,7 +269,58 @@ const TOPICS: { id: HelpTopic; label: string; body: ReactNode }[] = [
             'A deleted group’s pairs are removed.',
           ]}
         />
+        <P>
+          The same rule applies wherever membership changes: group edits in every master of a designspace, Copy
+          Groups, Diff Groups → Make like this master, and a Merge import.
+        </P>
         <P>Leave it on unless you are rebuilding kerning from scratch.</P>
+      </>
+    ),
+  },
+  {
+    id: 'designspace',
+    label: 'Designspace',
+    body: (
+      <>
+        <P>
+          Every master of the designspace is open at once. The header shows the designspace, the master you work in,
+          the edit scope and a badge for the masters' kerning groups.
+        </P>
+        <H>Masters</H>
+        <L
+          items={[
+            'The dropdown switches the master: kerning, margins, outlines and the margin checks are this master’s.',
+            'Kerning and margin edits, Import and the single-font Tools change the current master only.',
+          ]}
+        />
+        <H>Edit scope</H>
+        <P>Which masters a group edit reaches (add, remove, create, delete, rename, reorder). Each label counts them.</P>
+        <L
+          items={[
+            <><b className="text-accent">All compatible masters</b> (default): every master whose kerning groups are the same as this one’s, upright and italic alike.</>,
+            <><b className="text-careful">Compatible masters of this subspace</b> (e.g. italic=0): only with a discrete axis.</>,
+            <><b className="text-careful">This master only</b>: for bringing masters with different groups back in line.</>,
+            'A master whose groups differ is never reached. Each master remaps its own kerning (Keep Kerning); if one fails, none is changed.',
+          ]}
+        />
+        <H>The badge</H>
+        <L
+          items={[
+            <><b>Groups identical in all N</b>, or <b>k/n compatible</b> with the number of group sets. Its tooltip lists what differs.</>,
+            <><b>Match order</b> appears when masters differ from this one only in member order: one click copies the order (key glyphs included).</>,
+          ]}
+        />
+        <H>Tools → Between masters</H>
+        <L
+          items={[
+            <><b>Copy Groups to Masters</b>: make the chosen masters’ groups the same as this one’s; only what differs changes.</>,
+            <><b>Diff Groups</b>: the groups that differ, each membership drawn as glyph cells; <b>Make like this master</b> fixes one group everywhere.</>,
+            <><b>Copy Kerning of Glyphs</b>, <b>Transfer Kerning by Script</b>: copy pairs into other masters; pairs a master has keep their value unless you overwrite.</>,
+            <><b>Interpolate Kerning</b>: into this master from masters A and B, at the position their locations give.</>,
+            <><b>Replay History into Masters</b>: run this master’s recorded group edits in others.</>,
+          ]}
+        />
+        <P>Every tool shows its plan first; nothing changes until Apply.</P>
       </>
     ),
   },
@@ -275,9 +334,11 @@ const TOPICS: { id: HelpTopic; label: string; body: ReactNode }[] = [
             <><b>Save</b> writes the changed files back into the folder you opened (Chrome, Edge): only groups.plist, kerning.plist and edited glyphs, keeping their formatting.</>,
             <><b>Download .ufoz</b> when the font came as a .ufoz or the browser cannot write into folders.</>,
             <>A <b>designspace</b> saves every changed master into its folder; browsers that cannot write into folders <b>Download changes</b>: a .zip of just the changed files, to unzip into the designspace folder.</>,
-            <><b>Revert</b> goes back to the last save. There is no undo yet.</>,
-            'Unsaved edits are kept in this browser: after a reload, Restore brings them back.',
-            <>Groups → <b>Import / Export</b> exchanges groups as text (KernTool4 format). Tools runs Font-Rover's group scripts; each shows its plan first.</>,
+            <><b>Revert</b> goes back to the last save — every master of a designspace. There is no undo yet.</>,
+            'The app is frozen while files are written. If writing stops part way, the masters not written in full stay unsaved; Save again.',
+            'Unsaved edits are kept in this browser: after a reload, Restore brings them back. It first checks the folder (Chrome, Edge) and warns when a groups.plist or kerning.plist changed on disk meanwhile.',
+            <>Groups → <b>Import / Export</b> exchanges groups as text (KernTool4 format). <b>Merge</b> changes only the groups the file lists; <b>Replace</b> makes the chosen groups exactly the file’s.</>,
+            "Tools runs Font-Rover's group scripts; each shows its plan first.",
           ]}
         />
       </>

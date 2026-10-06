@@ -1,12 +1,14 @@
 # Later — inputs deferred from the prototype
 
-The prototype handles a single UFO ([PLAN.md](PLAN.md)). This file keeps what
-is already known about the next inputs so nothing has to be rediscovered.
-Suggested order: designspace first (reuses the UFO loader), then Glyphs.
+The prototype handled a single UFO ([PLAN.md](PLAN.md)). This file kept what
+was known about the next inputs so nothing had to be rediscovered.
+**§1 is done** (0.2.0–0.3.1): how it was built is in
+[DESIGNSPACE_PLAN.md](DESIGNSPACE_PLAN.md); §1 stays as the original brief.
+§2 (Glyphs) is parked: [GLYPHS_PLAN.md](GLYPHS_PLAN.md).
 
 ---
 
-## 1. Designspace / multi-master UFO
+## 1. Designspace / multi-master UFO (done)
 
 - `.designspace` + its UFOs; one UFO = one master; groups are **per master**
   (as in the desktop tool).

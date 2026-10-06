@@ -7,9 +7,9 @@ import { forgetSession, loadSession, rememberFiles, rememberState, type StoredSe
 import { WorkerError } from './worker/client'
 import type { DesignspaceChange, DesignspaceInfo, EditScope, FontSummary, OpenInput, OpResult } from './worker/protocol'
 import { useDialogs } from './ui/Dialog'
-import { AppearanceMenu, Button, ProgressBar, ScopeSelect, Select, type Progress } from './ui/controls'
+import { AppearanceMenu, Button, HelpButton, ProgressBar, ScopeSelect, Select, type Progress } from './ui/controls'
 import { HelpDrawer } from './ui/HelpDrawer'
-import { setHelpContext, toggleHelp, useHelp } from './help'
+import { setHelpContext, showHelp, toggleHelp, useHelp } from './help'
 import { APP_VERSION, VERSION_TITLE } from './version'
 import { GroupsControl } from './ui/GroupsControl'
 import { StartScreen } from './ui/StartScreen'
@@ -633,6 +633,7 @@ function MasterPicker({
           </option>
         ))}
       </ScopeSelect>
+      <HelpButton onClick={() => showHelp('designspace')} label="About designspaces and the edit scope" />
       <span
         className={`whitespace-nowrap rounded-md px-2 py-0.5 text-xs ${allSame || okHere ? 'bg-raised text-muted' : 'bg-careful-soft font-medium text-careful'}`}
         title={title}

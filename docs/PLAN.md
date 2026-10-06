@@ -12,6 +12,11 @@ know about them is kept in [LATER.md](LATER.md). The architecture keeps a
 `master` key in its protocol so adding them later does not change the RPC or
 the change format (§2).
 
+**Since 0.2.0** the app also opens a `.designspace` with its master UFOs
+(edits across masters, saving per master, tools between masters): see
+[DESIGNSPACE_PLAN.md](DESIGNSPACE_PLAN.md). Glyphs sources are parked:
+[GLYPHS_PLAN.md](GLYPHS_PLAN.md).
+
 Out of scope: the script/plugin system, the glyph editor, Runway, HarfBuzz
 shaping, layer-based masters (the desktop tool is not layer-aware either).
 

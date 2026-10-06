@@ -2,7 +2,7 @@
 // panel in use, and an optional topic the user picked (pinned until "Auto").
 import { useSyncExternalStore } from 'react'
 
-export type HelpTopic = 'overview' | 'font' | 'groups' | 'pairs' | 'preview' | 'keepKerning' | 'saving'
+export type HelpTopic = 'overview' | 'font' | 'groups' | 'pairs' | 'preview' | 'keepKerning' | 'designspace' | 'saving'
 
 type State = { open: boolean; context: HelpTopic; pinned: HelpTopic | null }
 

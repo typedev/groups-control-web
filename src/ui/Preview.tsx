@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import type { FontModel, SideId } from '../model/font'
 import { resolveKernPair } from '../model/kerning'
+import { staggerLabels } from '../model/labels'
 import { pairStops, wrapWithContext, type ChainMode, type PreviewSubject, type PreviewToken } from '../model/preview'
 import { pyRound } from '../model/pyround'
 import { sameMargin } from '../model/font'
@@ -38,6 +39,19 @@ const PAD = 16
 /** Room left of the text for the beam's handle and height (glyph_line/view.py). */
 const BEAM_GUTTER = 38
 const FAMILY = '"IBM Plex Sans Variable", system-ui, sans-serif'
+
+/** Height of one line of glyph names, and the space kept between two names. */
+const NAME_ROW = 14
+const NAME_GAP = 6
+
+let labelCtx: CanvasRenderingContext2D | null = null
+/** Width of a name label as drawn (11 px), for laying the names out. */
+function measureLabel(text: string): number {
+  labelCtx ??= document.createElement('canvas').getContext('2d')
+  if (!labelCtx) return text.length * 6
+  labelCtx.font = `11px ${FAMILY}`
+  return labelCtx.measureText(text).width
+}
 const KERN_ROW = 30
 /** Two label lines: right margin, then left margin. */
 const MARGIN_ROW = 26
@@ -98,6 +112,8 @@ type Layout = {
   /** kerning after each token (font units), pairs mode only. */
   kerns: number[][]
   rowHeight: number
+  /** Name label line (0 upper, 1 lower) of every token, per row; -1 = no label. */
+  nameLines: number[][]
   ascent: number
   width: number
   height: number
@@ -201,9 +217,22 @@ export function Preview({ font, side, input, run, readOnly, keysRef, beamY, onTo
       kerns.push(rk)
       width = Math.max(width, x + PAD)
     }
+    // Names: a label goes on the upper line unless it would run into the
+    // previous one there, then on the lower; a second line only when needed.
+    const nameLines = rows.map((row, r) => {
+      if (!showNames) return row.map(() => -1)
+      return staggerLabels(
+        row.map((t, i) => {
+          const g = font.glyph(t.n)
+          return t.ctx || !g ? null : { center: xs[r][i] + (g.w * scale) / 2, width: measureLabel(t.n) }
+        }),
+        NAME_GAP,
+      )
+    })
+    const nameRows = !showNames ? 0 : nameLines.some((row) => row.includes(1)) ? 2 : 1
     const lineBox = px * 1.6
-    const rowHeight = lineBox + (pairsMode ? KERN_ROW : 0) + (margins ? MARGIN_ROW : 0) + (showNames ? 14 : 0)
-    return { rows, xs, kerns, rowHeight, ascent: lineBox * 0.7, width, height: rows.length * rowHeight + PAD, scale }
+    const rowHeight = lineBox + (pairsMode ? KERN_ROW : 0) + (margins ? MARGIN_ROW : 0) + nameRows * NAME_ROW
+    return { rows, xs, kerns, rowHeight, nameLines, ascent: lineBox * 0.7, width, height: rows.length * rowHeight + PAD, scale }
   }, [font, lineTokens, pairRows, pairsMode, sizePt, view.w, margins, showNames, beamY])
 
   const stops = useMemo(() => (pairsMode ? pairStops(layout.rows) : []), [layout.rows, pairsMode])
@@ -405,12 +434,13 @@ export function Preview({ font, side, input, run, readOnly, keysRef, beamY, onTo
       if (showNames) {
         ctx.fillStyle = p.label
         ctx.textAlign = 'center'
+        const lines = layout.nameLines[r]
         row.forEach((t, i) => {
-          if (t.ctx) return
           const g = font.glyph(t.n)
-          if (g) ctx.fillText(t.n, xs[r][i] + (g.w * scale) / 2, y)
+          if (lines[i] < 0 || !g) return
+          ctx.fillText(t.n, xs[r][i] + (g.w * scale) / 2, y + lines[i] * NAME_ROW)
         })
-        y += 14
+        y += (layout.nameLines.some((l) => l.includes(1)) ? 2 : 1) * NAME_ROW
       }
       if (pairsMode) {
         // Kerning bars, values and exception markers (glyph_line/view.py).

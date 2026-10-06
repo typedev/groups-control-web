@@ -8,7 +8,7 @@ in `py/gcweb/` and `src/worker/`.
 
 | Topic | Decision |
 |---|---|
-| Scope of the prototype | one `.ufo` / `.ufoz`, one master; designspace and Glyphs → [LATER.md](LATER.md) |
+| Scope of the prototype | one `.ufo` / `.ufoz`, one master; designspace and Glyphs → [LATER.md](LATER.md). Designspace added in 0.2.0 ([DESIGNSPACE_PLAN.md](DESIGNSPACE_PLAN.md)); Glyphs parked ([GLYPHS_PLAN.md](GLYPHS_PLAN.md)) |
 | Undo | none in the prototype; confirmations + **Revert to file** |
 | UI | React 19 + Tailwind v4 for the chrome (as `~/WORK/fea-proof`); grids and preview are imperative canvas inside components |
 | Deploy | GitHub Actions → GitHub Pages of this repo |

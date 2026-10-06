@@ -5,6 +5,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+- Preview: long glyph names no longer run into each other — a name that
+  would overlap the previous one moves to a second line below (the line is
+  added only when needed).
+
+### Changed
+- Help: a **Designspace** topic (masters, edit scope, the badge and Match
+  order, the tools between masters), opened by the "?" next to the edit
+  scope; Overview explains opening a designspace folder; Saving and Keep
+  Kerning cover designspaces, Merge / Replace import and the restore check.
+- README and the docs describe the designspace support as shipped.
+
 ## [0.3.1] — 2026-10-06
 
 ### Added

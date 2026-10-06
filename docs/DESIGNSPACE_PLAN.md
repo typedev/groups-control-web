@@ -1,6 +1,8 @@
 # Designspace / multi-master UFO — work plan
 
-Status: **in progress** (spike on branch `designspace-spike`). Background and
+Status: **done** — 0.2.0 (open, edit across masters, save), 0.2.1 (autosave,
+folder picker, restore check), 0.3.0 (tools between masters), 0.3.1 (fixture,
+Replay History). Undo/redo is deferred. Background and
 the list of tools that need a second font: [LATER.md](LATER.md) §1. Glyphs
 sources build on this machinery: [GLYPHS_PLAN.md](GLYPHS_PLAN.md).
 
@@ -27,7 +29,7 @@ kerning is not. That is the model to optimise for, without assuming it.
 
 ## Spike results (2026-10-05, Chrome, Pyodide 314.0.7)
 
-Done on branch `designspace-spike`: `py/gcweb/designspace.py`,
+Done (since merged into `main`): `py/gcweb/designspace.py`,
 `api.open_designspace` / `switch_master`, folder drop + designspace choice
 in `src/files.ts`, master dropdown + compatibility badge in the header.
 Read-only; the session autosave skips designspaces.
@@ -149,9 +151,9 @@ diff in every UFO. Details: stage 3 below.
    ≈ 0.4 s), first switch to a master ≈ 370 ms, repeat switch ≈ 30 ms.
    When edits arrive (stage 2), deltas for non-current masters must update
    or drop their cached `FontModel`.
-2. **Scoped edits** — done. Header selector: *Edit compatible masters*
-   (default: same kern groups, same discrete subspace), *…all subspaces*
-   (shown only with discrete axes), *Edit this master only*. Membership
+2. **Scoped edits** — done. Header selector: *Edit all compatible masters*
+   (default: same kern groups, every subspace), *Edit compatible <subspace>
+   masters* (shown only with discrete axes), *Edit this master only*. Membership
    edits (add, create, remove, delete, rename, reorder) run in every target
    master through its own manager, so each remaps its own kerning; if any
    master fails, every master is rolled back and the error names it. There
@@ -159,8 +161,9 @@ diff in every UFO. Details: stage 3 below.
    reverts every master. Kerning, margin, import and tool edits stay on the
    current master. The badge is recomputed after every edit; the TS mirror
    drops the cached models of the other changed masters. Designspaces are
-   editable but **saving is blocked** until stage 3 (Save disabled with the
-   reason; leaving the page with edits asks first).
+   editable; saving came with stage 3. The default scope was later changed
+   to all compatible masters across discrete axes (see "Applying a
+   membership edit").
 3. **Saving** — done. Every master's `UfoDocument.changed_files()` (groups,
    kerning, edited `.glif`s; unchanged content skipped, original plist style
    kept), keyed by the master's path in the designspace folder
