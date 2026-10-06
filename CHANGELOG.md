@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.2.0] — 2026-10-06
+
 ### Added
 - Designspaces: drop a folder holding a `.designspace` (pick one when there
   are several); only the UFOs it references are read. The default master
