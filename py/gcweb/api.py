@@ -576,27 +576,76 @@ def tool_apply() -> str:
 # -- session (autosave) -------------------------------------------------------------
 
 
-def session_state() -> str:
-    """Current groups, kerning and history, to restore on top of the opened file."""
+def _master_state() -> dict:
     view = _require().master
-    return json.dumps(
-        {
-            "groups": {k: list(v) for k, v in view.groups.items()},
-            "kerning": [[l, r, v] for (l, r), v in view.kerning.items()],
-            "history": [list(e) for e in _manager.history],
-        }
+    return {
+        "groups": {k: list(v) for k, v in view.groups.items()},
+        "kerning": [[l, r, v] for (l, r), v in view.kerning.items()],
+        "history": [list(e) for e in _manager.history],
+    }
+
+
+def session_state() -> str:
+    """Current groups, kerning and history, to restore on top of the opened file.
+
+    A designspace keeps one such state per changed master, plus the edit scope.
+    """
+    if _designspace is None:
+        return json.dumps(_master_state())
+    origin = _current
+    masters = {}
+    for i, m in enumerate(_masters):
+        if m.doc.is_dirty():
+            _point(i)
+            masters[str(i)] = _master_state()
+    _point(origin)
+    return json.dumps({"scope": _scope, "masters": masters})
+
+
+def _restore_master(state: dict) -> tuple:
+    """Put one master's saved state back (current-master globals); returns the diffs."""
+    view = _require().master
+    _manager.history[:] = [tuple(e) for e in state.get("history", [])]
+    diffs = (
+        view.groups.reset_to({k: tuple(v) for k, v in state["groups"].items()}),
+        view.kerning.reset_to({(l, r): v for l, r, v in state["kerning"]}),
     )
+    _manager.makeReverseGroupsMapping()
+    return diffs
 
 
 def restore_state(state_json: str) -> str:
     """Put a saved session's groups/kerning/history back; returns the delta."""
+    global _scope
     state = json.loads(state_json)
-    _manager.history[:] = [tuple(e) for e in state.get("history", [])]
-    return _replace_all(
-        {k: tuple(v) for k, v in state["groups"].items()},
-        {(l, r): v for l, r, v in state["kerning"]},
-        None,
-    )
+    if "masters" not in state:
+        _manager.history[:] = [tuple(e) for e in state.get("history", [])]
+        return _replace_all(
+            {k: tuple(v) for k, v in state["groups"].items()},
+            {(l, r): v for l, r, v in state["kerning"]},
+            None,
+        )
+    if _designspace is None:
+        raise RuntimeError("the saved session belongs to a designspace")
+    if state.get("scope") in EDIT_SCOPES:
+        _scope = state["scope"]
+    origin = _current
+    current_diffs = (({}, []), ({}, []))
+    others = []
+    for key, master_state in state["masters"].items():
+        i = int(key)
+        if not 0 <= i < len(_masters):
+            continue
+        _point(i)
+        diffs = _restore_master(master_state)
+        if i == origin:
+            current_diffs = diffs
+        else:
+            others.append(i)
+    _point(origin)
+    delta = delta_of(origin, *current_diffs)
+    delta["lang"] = _lang_update(delta)
+    return json.dumps({"result": None, "delta": delta, "dirty": _dirty(), **_ds_extra(others)})
 
 
 # -- history journal (manager.history, Font-Rover groups_history.py format) --------

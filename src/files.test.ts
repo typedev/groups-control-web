@@ -1,5 +1,14 @@
-import { describe, expect, it } from 'vitest'
-import { checkFolder, classifyName, designspaceSources, InputError, normalizeRelative, shouldSkip } from './files'
+import { describe, expect, it, vi } from 'vitest'
+import {
+  checkFolder,
+  classifyName,
+  designspaceSources,
+  fromProjectFolder,
+  InputError,
+  normalizeRelative,
+  shouldSkip,
+  type Folder,
+} from './files'
 
 describe('classifyName', () => {
   it('recognises UFO folders and archives', () => {
@@ -49,5 +58,63 @@ describe('normalizeRelative', () => {
     expect(normalizeRelative('../A.ufo')).toBeNull()
     expect(normalizeRelative('/abs/A.ufo')).toBeNull()
     expect(normalizeRelative('C:/A.ufo')).toBeNull()
+  })
+})
+
+/** An in-memory folder tree: nested objects are folders, strings are file contents. */
+type Tree = { [name: string]: Tree | string }
+
+function fakeFolder(name: string, tree: Tree, reads: string[], path = name): Folder {
+  return {
+    name,
+    list: async () =>
+      Object.entries(tree).map(([n, v]) =>
+        typeof v === 'string'
+          ? { kind: 'file' as const, name: n, file: async () => (reads.push(`${path}/${n}`), new File([v], n)) }
+          : { kind: 'directory' as const, name: n, folder: fakeFolder(n, v, reads, `${path}/${n}`) },
+      ),
+    sub: async (rel) => {
+      let node: Tree | string = tree
+      for (const part of rel.split('/')) {
+        if (typeof node === 'string' || !(part in node)) throw new Error('NotFound')
+        node = node[part]
+      }
+      if (typeof node === 'string') throw new Error('NotADirectory')
+      return fakeFolder(rel.split('/').pop()!, node, reads, `${path}/${rel}`)
+    },
+  }
+}
+
+const UFO: Tree = { 'metainfo.plist': 'm', 'groups.plist': 'g', glyphs: { 'A_.glif': 'a' }, '.DS_Store': 'x' }
+const DS = (...files: string[]) => `<designspace><sources>${files.map((f) => `<source filename="${f}"/>`).join('')}</sources></designspace>`
+
+describe('fromProjectFolder', () => {
+  it('asks which designspace and reads only its masters', async () => {
+    const reads: string[] = []
+    const project = fakeFolder('P', { 'a.designspace': DS('A.ufo'), 'b.designspace': DS('B.ufo'), 'A.ufo': UFO, 'B.ufo': UFO, logs: { big: 'x' } }, reads)
+    const choose = vi.fn(async () => 'b.designspace')
+    const got = await fromProjectFolder(project, choose, Promise.resolve(null))
+    expect(choose).toHaveBeenCalledWith(['a.designspace', 'b.designspace'])
+    expect(got!.input.main).toBe('P/b.designspace')
+    expect(got!.input.files.map((f) => f.path).sort()).toEqual([
+      'P/B.ufo/glyphs/A_.glif',
+      'P/B.ufo/groups.plist',
+      'P/B.ufo/metainfo.plist',
+      'P/b.designspace',
+    ])
+    expect(reads.some((r) => r.includes('A.ufo') || r.includes('logs'))).toBe(false)
+  })
+
+  it('cancelled choice opens nothing', async () => {
+    const project = fakeFolder('P', { 'a.designspace': DS('A.ufo'), 'b.designspace': DS('A.ufo'), 'A.ufo': UFO }, [])
+    expect(await fromProjectFolder(project, async () => null, Promise.resolve(null))).toBeNull()
+  })
+
+  it('refuses missing, outside and non-UFO sources', async () => {
+    const open = (tree: Tree) => fromProjectFolder(fakeFolder('P', tree, []), async () => null, Promise.resolve(null))
+    await expect(open({ 'a.designspace': DS('Missing.ufo') })).rejects.toThrow(/not found in P/)
+    await expect(open({ 'a.designspace': DS('../A.ufo') })).rejects.toThrow(/outside this folder/)
+    await expect(open({ 'a.designspace': DS('A.ufo'), 'A.ufo': { 'groups.plist': 'g' } })).rejects.toThrow(InputError)
+    await expect(open({ 'readme.txt': 'x' })).rejects.toThrow(/no .designspace/)
   })
 })

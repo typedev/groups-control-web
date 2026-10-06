@@ -5,6 +5,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Designspace sessions are autosaved too: after a reload, Restore brings
+  back the unsaved edits of every master and the edit scope.
+- **Open folder…** (Chrome, Edge) opens a project folder with a
+  `.designspace` as well as a `.ufo` folder; saving then writes into it
+  without asking for the folder again.
+
 ## [0.2.0] — 2026-10-06
 
 ### Added

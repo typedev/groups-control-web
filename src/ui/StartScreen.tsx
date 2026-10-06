@@ -71,9 +71,10 @@ export function StartScreen({ runtime, opening, error, onOpen, chooseDesignspace
                   <button
                     type="button"
                     className="h-9 rounded-lg bg-accent px-4 text-[13px] font-medium text-accent-ink hover:brightness-110"
-                    onClick={() => onOpen(pickFolder())}
+                    onClick={() => onOpen(pickFolder(chooseDesignspace, onProgress))}
+                    title="A .ufo folder, or a folder with a .designspace and its masters"
                   >
-                    Open .ufo folder…
+                    Open folder…
                   </button>
                 )}
                 <button

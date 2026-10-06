@@ -345,3 +345,19 @@ def test_edits_made_while_saving_stay_unsaved(project, tmp_path):
     assert json.loads(api.has_changes()) is True
     again = [f["name"] for f in json.loads(api.changed_files(str(tmp_path / "out2")))]
     assert "masters/Light.ufo/groups.plist" in again
+
+
+def test_session_state_restores_every_changed_master(project):
+    api.open_designspace(str(project))
+    api.delete_group(K2A, True)
+    api.set_edit_scope("master")
+    state = api.session_state()
+    assert sorted(json.loads(state)["masters"]) == ["0", "1"]
+    api.close_font()
+
+    api.open_designspace(str(project))
+    res = json.loads(api.restore_state(state))
+    assert res["others"] == [1] and res["dirty"]
+    assert K2A in res["delta"]["groups"]["removed"]
+    assert K2A not in _groups(1) and K2A in _groups(2)
+    assert res["designspace"]["scope"] == "master"

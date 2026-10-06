@@ -87,74 +87,63 @@ function subdirectory(dir: FileSystemDirectoryEntry, path: string): Promise<File
   return new Promise((res, rej) => dir.getDirectory(path, {}, (e) => res(e as FileSystemDirectoryEntry), rej))
 }
 
-/**
- * A dropped project folder: pick one of the .designspace files at its top
- * level, then read only that file and the UFOs it references (project
- * folders may hold hundreds of MB of builds and logs).
- */
-async function fromProjectFolder(
-  dir: FileSystemDirectoryEntry,
-  choose: ChooseDesignspace,
-  handlePromise: Promise<FileSystemHandle | null>,
-  onProgress?: ReadProgress,
-): Promise<FontInput | null> {
-  const t0 = performance.now()
-  const found = (await children(dir))
-    .filter((e) => e.isFile && e.name.toLowerCase().endsWith('.designspace'))
-    .sort((a, b) => a.name.localeCompare(b.name))
-  if (!found.length) {
-    throw new InputError(`${dir.name}: no .designspace at the top of this folder. Drop a .ufo folder, a .ufoz file or a folder with a .designspace.`)
-  }
-  const chosenName = found.length === 1 ? found[0].name : await choose(found.map((e) => e.name))
-  if (!chosenName) return null
-  const chosen = found.find((e) => e.name === chosenName)!
-  const file = await new Promise<File>((res, rej) => (chosen as FileSystemFileEntry).file(res, rej))
-  const bytes = await file.arrayBuffer()
-  const sources = designspaceSources(new TextDecoder().decode(bytes))
-  if (!sources.length) throw new InputError(`${chosen.name} lists no sources.`)
-  const pending: PendingFile[] = []
-  for (const [i, source] of sources.entries()) {
-    onProgress?.('Listing the masters', i, sources.length)
-    const rel = normalizeRelative(source)
-    if (!rel) throw new InputError(`${chosen.name}: the source ${source} is outside the dropped folder. Drop the folder that contains every master.`)
-    let ufo: FileSystemDirectoryEntry
-    try {
-      ufo = await subdirectory(dir, rel)
-    } catch {
-      throw new InputError(`${chosen.name}: the source ${source} was not found in ${dir.name}.`)
-    }
-    const root = `${dir.name}/${rel}`
-    const start = pending.length
-    await collectEntry(ufo, '', pending, root)
-    checkFolder(source, pending.slice(start).map((f) => f.path.slice(root.length + 1)))
-  }
-  const files = [{ path: `${dir.name}/${chosen.name}`, bytes }, ...(await readPending(pending, onProgress))]
-  const mb = files.reduce((n, f) => n + f.bytes.byteLength, 0) / 1e6
-  console.info(`[designspace] read ${sources.length} UFOs, ${files.length} files, ${mb.toFixed(1)} MB in ${Math.round(performance.now() - t0)} ms`)
-  // Chromium: the dropped folder's handle lets saving write into the masters.
-  const handle = await handlePromise
+// -- folders: drop entries and picker handles behind one interface ----------
+
+export type FolderNode =
+  | { kind: 'file'; name: string; file(): Promise<File> }
+  | { kind: 'directory'; name: string; folder: Folder }
+
+/** A folder from a drop (FileSystemDirectoryEntry) or a picker (FileSystemDirectoryHandle). */
+export type Folder = { name: string; list(): Promise<FolderNode[]>; sub(path: string): Promise<Folder> }
+
+function entryFolder(dir: FileSystemDirectoryEntry): Folder {
   return {
-    input: { name: chosen.name, kind: 'designspace', files, main: `${dir.name}/${chosen.name}` },
-    handle: handle?.kind === 'directory' ? (handle as FileSystemDirectoryHandle) : null,
+    name: dir.name,
+    list: async () =>
+      (await children(dir)).map((e): FolderNode =>
+        e.isFile
+          ? { kind: 'file', name: e.name, file: () => new Promise<File>((res, rej) => (e as FileSystemFileEntry).file(res, rej)) }
+          : { kind: 'directory', name: e.name, folder: entryFolder(e as FileSystemDirectoryEntry) },
+      ),
+    sub: async (path) => entryFolder(await subdirectory(dir, path)),
   }
 }
 
-// -- drop -------------------------------------------------------------------
+function handleFolder(dir: FileSystemDirectoryHandle): Folder {
+  return {
+    name: dir.name,
+    list: async () => {
+      const out: FolderNode[] = []
+      // `values()` is in Chromium's FileSystemDirectoryHandle but not in TS's DOM lib yet.
+      for await (const child of (dir as unknown as { values(): AsyncIterable<FileSystemHandle> }).values()) {
+        out.push(
+          child.kind === 'file'
+            ? { kind: 'file', name: child.name, file: () => (child as FileSystemFileHandle).getFile() }
+            : { kind: 'directory', name: child.name, folder: handleFolder(child as FileSystemDirectoryHandle) },
+        )
+      }
+      return out
+    },
+    sub: async (path) => {
+      let d = dir
+      for (const part of path.split('/')) d = await d.getDirectoryHandle(part)
+      return handleFolder(d)
+    },
+  }
+}
 
 /** Reports reading progress; total 0 = unknown length. */
 export type ReadProgress = (label: string, done: number, total: number) => void
 
-type PendingFile = { entry: FileSystemFileEntry; path: string }
+type PendingFile = { file: () => Promise<File>; path: string }
 
-/** Walk a dropped folder (names only, nothing read yet), so progress has a total. */
-async function collectEntry(entry: FileSystemEntry, rel: string, out: PendingFile[], root: string) {
-  if (rel && shouldSkip(rel)) return
-  if (entry.isFile) {
-    out.push({ entry: entry as FileSystemFileEntry, path: `${root}/${rel}` })
-  } else if (entry.isDirectory) {
-    for (const child of await children(entry as FileSystemDirectoryEntry)) {
-      await collectEntry(child, rel ? `${rel}/${child.name}` : child.name, out, root)
-    }
+/** Walk a folder (names only, nothing read yet), so progress has a total. */
+async function collect(folder: Folder, rel: string, out: PendingFile[], root: string) {
+  for (const node of await folder.list()) {
+    const path = rel ? `${rel}/${node.name}` : node.name
+    if (shouldSkip(path)) continue
+    if (node.kind === 'file') out.push({ file: node.file, path: `${root}/${path}` })
+    else await collect(node.folder, path, out, root)
   }
 }
 
@@ -165,18 +154,64 @@ async function readPending(pending: PendingFile[], onProgress?: ReadProgress): P
   for (let i = 0; i < pending.length; i += READ_BATCH) {
     onProgress?.('Reading files', i, pending.length)
     const batch = pending.slice(i, i + READ_BATCH)
-    out.push(
-      ...(await Promise.all(
-        batch.map(async ({ entry, path }) => {
-          const file = await new Promise<File>((res, rej) => entry.file(res, rej))
-          return { path, bytes: await file.arrayBuffer() }
-        }),
-      )),
-    )
+    out.push(...(await Promise.all(batch.map(async ({ file, path }) => ({ path, bytes: await (await file()).arrayBuffer() })))))
   }
   onProgress?.('Reading files', pending.length, pending.length)
   return out
 }
+
+/**
+ * A project folder (dropped or picked): pick one of the .designspace files at
+ * its top level, then read only that file and the UFOs it references
+ * (project folders may hold hundreds of MB of builds and logs).
+ */
+export async function fromProjectFolder(
+  dir: Folder,
+  choose: ChooseDesignspace,
+  handlePromise: Promise<FileSystemHandle | null>,
+  onProgress?: ReadProgress,
+): Promise<FontInput | null> {
+  const t0 = performance.now()
+  const found = (await dir.list())
+    .filter((e): e is Extract<FolderNode, { kind: 'file' }> => e.kind === 'file' && e.name.toLowerCase().endsWith('.designspace'))
+    .sort((a, b) => a.name.localeCompare(b.name))
+  if (!found.length) {
+    throw new InputError(`${dir.name}: no .designspace at the top of this folder. Open a .ufo folder, a .ufoz file or a folder with a .designspace.`)
+  }
+  const chosenName = found.length === 1 ? found[0].name : await choose(found.map((e) => e.name))
+  if (!chosenName) return null
+  const chosen = found.find((e) => e.name === chosenName)!
+  const bytes = await (await chosen.file()).arrayBuffer()
+  const sources = designspaceSources(new TextDecoder().decode(bytes))
+  if (!sources.length) throw new InputError(`${chosen.name} lists no sources.`)
+  const pending: PendingFile[] = []
+  for (const [i, source] of sources.entries()) {
+    onProgress?.('Listing the masters', i, sources.length)
+    const rel = normalizeRelative(source)
+    if (!rel) throw new InputError(`${chosen.name}: the source ${source} is outside this folder. Open the folder that contains every master.`)
+    let ufo: Folder
+    try {
+      ufo = await dir.sub(rel)
+    } catch {
+      throw new InputError(`${chosen.name}: the source ${source} was not found in ${dir.name}.`)
+    }
+    const root = `${dir.name}/${rel}`
+    const start = pending.length
+    await collect(ufo, '', pending, root)
+    checkFolder(source, pending.slice(start).map((f) => f.path.slice(root.length + 1)))
+  }
+  const files = [{ path: `${dir.name}/${chosen.name}`, bytes }, ...(await readPending(pending, onProgress))]
+  const mb = files.reduce((n, f) => n + f.bytes.byteLength, 0) / 1e6
+  console.info(`[designspace] read ${sources.length} UFOs, ${files.length} files, ${mb.toFixed(1)} MB in ${Math.round(performance.now() - t0)} ms`)
+  // Chromium: the folder's handle lets saving write into the masters.
+  const handle = await handlePromise
+  return {
+    input: { name: chosen.name, kind: 'designspace', files, main: `${dir.name}/${chosen.name}` },
+    handle: handle?.kind === 'directory' ? (handle as FileSystemDirectoryHandle) : null,
+  }
+}
+
+// -- drop -------------------------------------------------------------------
 
 /**
  * Must be called synchronously from the `drop` handler: the DataTransfer is
@@ -199,10 +234,10 @@ export function fromDrop(dt: DataTransfer, choose: ChooseDesignspace, onProgress
     if (!entry) throw new InputError('This browser cannot read the dropped item.')
     const kind = classifyName(entry.name)
     if (kind === 'ufoz' && file) return fromFile(file)
-    if (kind === null && entry.isDirectory) return fromProjectFolder(entry as FileSystemDirectoryEntry, choose, handlePromise, onProgress)
+    if (kind === null && entry.isDirectory) return fromProjectFolder(entryFolder(entry as FileSystemDirectoryEntry), choose, handlePromise, onProgress)
     if (kind !== 'folder' || !entry.isDirectory) throw unsupported(entry.name)
     const pending: PendingFile[] = []
-    await collectEntry(entry, '', pending, entry.name)
+    await collect(entryFolder(entry as FileSystemDirectoryEntry), '', pending, entry.name)
     checkFolder(entry.name, pending.map((f) => f.path.slice(entry.name.length + 1)))
     const files = await readPending(pending, onProgress)
     const handle = await handlePromise
@@ -223,24 +258,10 @@ export async function fromFile(file: File): Promise<FontInput> {
   }
 }
 
-async function readHandle(dir: FileSystemDirectoryHandle, rel: string, out: FontFile[], root: string) {
-  // `values()` is in Chromium's FileSystemDirectoryHandle but not in TS's DOM lib yet.
-  const entries = (dir as unknown as { values(): AsyncIterable<FileSystemHandle> }).values()
-  for await (const child of entries) {
-    const path = rel ? `${rel}/${child.name}` : child.name
-    if (shouldSkip(path)) continue
-    if (child.kind === 'file') {
-      const file = await (child as FileSystemFileHandle).getFile()
-      out.push({ path: `${root}/${path}`, bytes: await file.arrayBuffer() })
-    } else {
-      await readHandle(child as FileSystemDirectoryHandle, path, out, root)
-    }
-  }
-}
-
 export const canPickFolder = typeof window !== 'undefined' && 'showDirectoryPicker' in window
 
-export async function pickFolder(): Promise<FontInput | null> {
+/** Chromium folder picker: a .ufo folder, or a project folder with a .designspace. */
+export async function pickFolder(choose: ChooseDesignspace, onProgress?: ReadProgress): Promise<FontInput | null> {
   let handle: FileSystemDirectoryHandle
   try {
     handle = await (window as unknown as {
@@ -249,9 +270,11 @@ export async function pickFolder(): Promise<FontInput | null> {
   } catch {
     return null // cancelled
   }
-  if (classifyName(handle.name) !== 'folder') throw unsupported(handle.name)
-  const files: FontFile[] = []
-  await readHandle(handle, '', files, handle.name)
-  checkFolder(handle.name, files.map((f) => f.path.slice(handle.name.length + 1)))
-  return { input: { name: handle.name, kind: 'folder', files }, handle }
+  const kind = classifyName(handle.name)
+  if (kind === null) return fromProjectFolder(handleFolder(handle), choose, Promise.resolve(handle), onProgress)
+  if (kind !== 'folder') throw unsupported(handle.name)
+  const pending: PendingFile[] = []
+  await collect(handleFolder(handle), '', pending, handle.name)
+  checkFolder(handle.name, pending.map((f) => f.path.slice(handle.name.length + 1)))
+  return { input: { name: handle.name, kind: 'folder', files: await readPending(pending, onProgress) }, handle }
 }

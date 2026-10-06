@@ -68,22 +68,23 @@ export function App() {
       setOpening(input.name)
       models.current.clear()
       // Copies the bytes synchronously, before they are transferred to the worker.
-      // A designspace (preview, read-only) is not kept: its masters can be 100 MB.
-      const remembered = input.kind === 'designspace' ? forgetSession() : rememberFiles(input, handle)
+      const remembered = rememberFiles(input, handle)
       const t0 = performance.now()
       const summary = await python.call('open', [input], input.files.map((f) => f.bytes))
       if (summary.designspace) logDesignspace(summary.designspace, performance.now() - t0)
       let model = new FontModel(await python.call('fontData', []))
       let dirty = false
+      let restored = summary
       if (restore) {
         const res = await python.call('restoreState', [restore])
         model = model.withDelta(res.delta)
         dirty = res.dirty
+        restored = withDesignspace(summary, res)
       }
       await remembered
       if (restore) await rememberState(dirty ? restore : null)
       setStored(null)
-      setFont({ name: input.name, kind: input.kind, summary, handle, model, dirty })
+      setFont({ name: input.name, kind: input.kind, summary: restored, handle, model, dirty })
     } catch (err) {
       if (err instanceof InputError || err instanceof WorkerError) setError(err.message)
       else {
@@ -309,7 +310,7 @@ export function App() {
   const restoreSession = useCallback(async () => {
     const s = await loadSession()
     if (!s?.state) return
-    await open(Promise.resolve({ input: { name: s.name, kind: s.kind, files: s.files }, handle: s.handle }), s.state)
+    await open(Promise.resolve({ input: { name: s.name, kind: s.kind, files: s.files, main: s.main }, handle: s.handle }), s.state)
   }, [open])
 
   const discardSession = useCallback(async () => {

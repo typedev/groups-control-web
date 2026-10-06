@@ -169,9 +169,10 @@ diff in every UFO. Details: stage 3 below.
    unzip into the designspace folder (files to delete, e.g. an emptied
    `groups.plist`, are named in the status line). Tests: open → save = no
    files; save writes only the changed masters and nothing else changes on
-   disk; reopen → save = no files; style kept; zip content. Not yet: the
-   session autosave (reload loses designspace edits; leaving asks first),
-   opening a designspace from the folder picker button.
+   disk; reopen → save = no files; style kept; zip content. Since then: the
+   session autosave keeps one state per changed master (plus the scope),
+   and the folder picker opens a project folder too (drop and picker share
+   one folder interface in `src/files.ts`).
 4. **Two-font tools** from LATER.md §1 (Copy Groups, Diff, Copy/Transfer/
    Interpolate Kerning).
 

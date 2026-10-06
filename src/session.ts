@@ -10,6 +10,8 @@ export type StoredSession = {
   name: string
   kind: OpenInput['kind']
   files: FontFile[]
+  /** designspace: its path among the files (OpenInput.main). */
+  main?: string
   /** Writable folder handle (Chromium); permission is asked again on save. */
   handle: FileSystemDirectoryHandle | null
   /** api.session_state() JSON; null until there are unsaved edits. */
@@ -49,6 +51,7 @@ export async function rememberFiles(input: OpenInput, handle: FileSystemDirector
     name: input.name,
     kind: input.kind,
     files: input.files.map((f) => ({ path: f.path, bytes: f.bytes.slice(0) })),
+    main: input.main,
     handle,
     state: null,
     savedAt: null,
