@@ -25,6 +25,7 @@ from fontTools.pens.transformPen import TransformPen
 
 from gcweb.document import UfoDocument
 from gcweb.lang import LangChecker
+from gcweb.scripts import COMMON, glyph_scripts, script_label
 
 
 def _num(v: float) -> float | int:
@@ -103,6 +104,8 @@ def font_payload(doc: UfoDocument) -> dict:
     info = doc.ufo.info
     order = doc.glyph_order()
     view = doc.master
+    records = {name: glyph_record(doc, name) for name in order}
+    scripts = glyph_scripts(order, lambda n: records[n]["u"] if n in records else None)
     return {
         "info": {
             "unitsPerEm": info.unitsPerEm or 1000,
@@ -113,8 +116,11 @@ def font_payload(doc: UfoDocument) -> dict:
             "italicAngle": info.italicAngle or 0,
         },
         "order": order,
-        "glyphs": {name: glyph_record(doc, name) for name in order},
+        "glyphs": records,
         "groups": {k: list(v) for k, v in view.groups.items()},
         "kerning": [[l, r, v] for (l, r), v in view.kerning.items()],
         "lang": LangChecker(doc).flagged(list(view.kerning.keys())),
+        # Script filter / sort of the font grid; glyphs of no script are "Common".
+        "scripts": scripts,
+        "scriptLabels": {code: script_label(code) for code in sorted(set(scripts.values()) | {COMMON})},
     }

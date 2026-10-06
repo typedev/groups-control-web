@@ -120,8 +120,9 @@ undo step across all touched masters. Sets are recomputed after each edit:
 
 - Master dropdown in the header, default master first selected. It switches
   kerning, margins, outlines and margin validation.
-- Margin validation: current master only (all masters needs all outlines;
-  later).
+- Margin validation: current master only. Checking every master at once was
+  considered and dropped (2026-10-06): the user steps through the masters to
+  look; margins are not compared across masters.
 
 ## Saving
 
@@ -173,8 +174,23 @@ diff in every UFO. Details: stage 3 below.
    session autosave keeps one state per changed master (plus the scope),
    and the folder picker opens a project folder too (drop and picker share
    one folder interface in `src/files.ts`).
-4. **Two-font tools** from LATER.md §1 (Copy Groups, Diff, Copy/Transfer/
-   Interpolate Kerning).
+4. **Two-font tools** between masters of the open designspace, in the
+   Tools dialog (decided 2026-10-06), in this order:
+   - **Copy Groups** — current master → chosen masters. Incremental, not the
+     desktop's delete-all-then-add (14 s for 17 masters in CPython, and it
+     churns kerning even where groups are equal): per target, delete the
+     groups the source lacks, take out members that belong elsewhere, add
+     the missing ones, then copy the order. Equal masters are skipped.
+   - **Diff Groups** — a separate tool with a visual view: the differing
+     groups shown with our glyph grid cells, side by side per master.
+     Kerning differences are left out (user, 2026-10-06).
+   - **Copy Kerning of Glyphs**, then **Interpolate** / **Transfer Kerning
+     by Script** — engines vendored from Font-Rover (`copy_kerning`,
+     `interpolate_kerning`, `transfer_kerning`). Interpolate writes into the
+     current master and takes the position from the designspace locations.
+
+   All five done (2026-10-06): `py/gcweb/master_tools.py`; option types
+   `masters`, `master`, `checklist` in the Tools dialog.
 
 ## Fixtures
 

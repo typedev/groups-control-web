@@ -144,6 +144,10 @@ const handlers: Record<string, (...params: never[]) => unknown> = {
   restoreState: (state: string) => JSON.parse(api.restore_state(state)),
   loadHistory: (text: string) => JSON.parse(api.load_history(text)),
   toolList: () => JSON.parse(api.tool_list()),
+  groupsDiff: (masters: number[]) => JSON.parse(api.groups_diff(JSON.stringify(masters))),
+  toolChoices: (toolId: string, optionId: string) => JSON.parse(api.tool_choices(toolId, optionId)),
+  matchGroup: (group: string, masters: number[], keep: boolean) =>
+    JSON.parse(api.match_group(group, JSON.stringify(masters), keep)),
   toolPlan: (id: string, options: unknown) => JSON.parse(api.tool_plan(id, JSON.stringify(options))),
   toolApply: () => JSON.parse(api.tool_apply()),
   history: () => JSON.parse(api.history()),

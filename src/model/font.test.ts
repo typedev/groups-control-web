@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { displayGroupName, FontModel, sameMargin, searchMatcher, sortByUnicode, visibleInFontGrid } from './font'
+import { COMMON, displayGroupName, FontModel, sameMargin, searchMatcher, sortByUnicode, visibleInFontGrid } from './font'
 import { pyRound } from './pyround'
 import type { FontData, GlyphRecord } from './types'
 
@@ -194,5 +194,29 @@ describe('beam margins in validation', () => {
     const atBase = font.validate('public.kern1.sq', 'kern1', 0)
     expect(atBase.marginMismatch).toBe(false) // tri at y=0 is as wide as the square; dot missed
     expect(font.validate('public.kern1.sq', 'kern1', 250).marginMismatch).toBe(true) // tri 150
+  })
+})
+
+describe('scripts', () => {
+  const withScripts = new FontModel({
+    ...data,
+    order: ['space', 'A', 'be-cy', 'Aacute', 'zero', 've-cy', 'B'],
+    glyphs: { ...data.glyphs, 'be-cy': g([0x431], 1, 1), 've-cy': g([0x432], 1, 1), zero: g([0x30], 1, 1) },
+    scripts: { A: 'Latn', Aacute: 'Latn', B: 'Latn', 'be-cy': 'Cyrl', 've-cy': 'Cyrl' },
+    scriptLabels: { Latn: 'Latin', Cyrl: 'Cyrillic', Zyyy: 'Common' },
+  })
+
+  it('counts glyphs per script, Common last', () => {
+    expect(withScripts.scriptCounts()).toEqual([
+      ['Latn', 3],
+      ['Cyrl', 2],
+      [COMMON, 2],
+    ])
+    expect(withScripts.scriptOf('zero')).toBe(COMMON)
+    expect(withScripts.scriptLabel('Cyrl')).toBe('Cyrillic')
+  })
+
+  it('treats a font without script data as all Common', () => {
+    expect(new FontModel(data).scriptCounts()).toEqual([[COMMON, data.order.length]])
   })
 })

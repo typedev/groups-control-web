@@ -5,6 +5,40 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+- Tools → **Between masters** (designspace only):
+  - **Copy Groups to Masters**: make the chosen masters' groups the same as
+    the current master's (all, kerning or other groups). Only what differs
+    is changed, kerning following membership in each master with Keep
+    Kerning; masters already the same are left alone. Plan first, then
+    Apply, as with the other tools.
+  - **Diff Groups**: the kerning groups that are not the same in every
+    master, each membership drawn as a row of glyph cells with the masters
+    that have it — glyphs this master's group lacks outlined, glyphs missing
+    there shown as missing cells, a different key glyph dashed. All masters
+    or the current discrete subspace; order-only differences optional.
+    Kerning is not compared. **Make like this master** fixes one group in
+    every compared master (kerning follows; glyphs it takes leave their
+    other group).
+  - **Copy Kerning of Glyphs**: the pairs of the selected (or typed) glyphs,
+    with their groups' pairs unless turned off, into the chosen masters;
+    only missing pairs are added.
+  - **Interpolate Kerning**: the kerning of masters A and B interpolated
+    into this master; the position comes from the designspace locations
+    (or is typed). Pairs a master lacks take its group pair's value.
+  - **Transfer Kerning by Script**: the pairs of the chosen scripts (listed
+    with their pair counts) into the chosen masters. Only scripts some glyph
+    is written in are listed: pairs with marks or punctuation no longer
+    bring in Syriac, Thaana… from those characters' script extensions.
+- Font panel: a **Scripts** filter (Latin, Cyrillic, Greek, Common… with
+  glyph counts) next to Glyph order / Unicode order. A glyph's script is its character's Unicode script, found through
+  its own unicode, its base name (`a.sc`, `uni0628.fina`) or a ligature's
+  parts; figures, punctuation and marks are Common.
+
+### Changed
+- The groups / glyphs-grouped counter moved from the header to the right
+  end of the toolbar (Add group, Rename … Tools), saving header room.
+
 ## [0.2.1] — 2026-10-06
 
 ### Added

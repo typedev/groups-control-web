@@ -24,7 +24,7 @@ def payload() -> dict:
 
 
 def test_shape(payload):
-    assert set(payload) == {"info", "order", "glyphs", "groups", "kerning", "lang"}
+    assert set(payload) == {"info", "order", "glyphs", "groups", "kerning", "lang", "scripts", "scriptLabels"}
     assert payload["info"]["unitsPerEm"] == 1000
     assert len(payload["order"]) == len(set(payload["order"])) == len(payload["glyphs"]) == 50
     assert payload["groups"]["public.kern1.@MMK_L_A"] == ["A"]
@@ -89,3 +89,18 @@ def test_angled_margins_follow_italic_angle():
     assert left == pytest.approx(100)
     assert right == pytest.approx(100)
     assert margins(glyph, layer, 0) == (100, 0)
+
+
+def test_scripts(payload):
+    # MutatorSans: Latin capitals; marks / punctuation have no script (Common).
+    assert payload["scripts"]["A"] == "Latn"
+    assert payload["scriptLabels"] == {"Latn": "Latin", "Zyyy": "Common"}
+    assert all(code == "Latn" for code in payload["scripts"].values())
+
+
+def test_glyph_scripts_ignore_script_extensions():
+    from gcweb.scripts import glyph_scripts
+
+    cps = {"a": [0x61], "acutecmb": [0x301], "periodcentered": [0xB7], "be-cy": [0x431], "x.alt": []}
+    got = glyph_scripts(["a.sc", "acutecmb", "periodcentered", "be-cy", "uni0628.fina", "x.alt"], cps.get)
+    assert got == {"a.sc": "Latn", "be-cy": "Cyrl", "uni0628.fina": "Arab"}

@@ -16,8 +16,9 @@ import {
 import { freeName, nameProblem } from '../model/naming'
 import { buildPairRows } from '../model/pairs'
 import * as Sel from '../model/selection'
-import type { GroupScope, HistoryState, OpResult, Refused, ToolSpec } from '../worker/protocol'
+import type { DesignspaceInfo, GroupScope, HistoryState, OpResult, Refused, ToolSpec } from '../worker/protocol'
 import { ToolDialog } from './ToolDialog'
+import { DiffGroupsDialog } from './DiffGroupsDialog'
 import { Button, Check, HelpButton, KeepKerningSwitch, Menu, MenuItem, MenuSeparator, Segmented, Select, TextInput } from './controls'
 import { setHelpContext, showHelp, type HelpTopic } from '../help'
 import { download, sidecarName } from '../save'
@@ -49,7 +50,8 @@ type Props = {
   readOnly: boolean
   run: Run
   ask: Ask
-  onStats: (text: string) => void
+  /** Set when the font is a master of an open designspace. */
+  designspace?: DesignspaceInfo
 }
 
 function Column({
@@ -110,7 +112,7 @@ type DropTarget =
   | null
 type Drag = { source: DragSource; names: string[]; x0: number; y0: number; active: boolean; x: number; y: number }
 
-export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: Props) {
+export function GroupsControl({ font, fontName, readOnly, run, ask, designspace }: Props) {
   const theme = usePalette()
   const [side, setSide] = useState<SideId>('kern1')
   const sideData = font.side(side)
@@ -122,6 +124,8 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
   const [sortMode, setSortMode] = useState<SortMode>('order')
   const [hideGrouped, setHideGrouped] = useState(true)
   const [kernFilter, setKernFilter] = useState<KernFilter>('all')
+  /** Scripts shown in the font grid; empty = all. */
+  const [scriptFilter, setScriptFilter] = useState<string[]>([])
 
   // Column 2
   const [groupScroll, setGroupScroll] = useState<{ index: number; key: number } | null>(null)
@@ -195,9 +199,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
     setSel(Sel.initialSelection(fontRef.current.side(side).groups[0] ?? null))
   }, [side])
 
-  useEffect(() => {
-    onStats(`${sideData.groups.length} groups | ${sideData.grouped.size}/${font.data.order.length} glyphs grouped`)
-  }, [sideData, font, onStats])
+  const stats = `${sideData.groups.length} groups | ${sideData.grouped.size}/${font.data.order.length} glyphs grouped`
 
   const refreshHistory = useCallback(async () => setHistory(await python.call('history', [])), [])
   useEffect(() => {
@@ -207,10 +209,14 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
   const fontNames = useMemo(() => {
     const ordered = sortMode === 'unicode' ? sortByUnicode(font.data.order, font.data.glyphs) : font.data.order
     const match = searchMatcher(searchMode, searchText)
+    const scripts = scriptFilter.length ? new Set(scriptFilter) : null
     return ordered.filter(
-      (n) => (!match || match(n, font.data.glyphs[n])) && visibleInFontGrid(n, sideData, kernFilter, hideGrouped),
+      (n) =>
+        (!scripts || scripts.has(font.scriptOf(n))) &&
+        (!match || match(n, font.data.glyphs[n])) &&
+        visibleInFontGrid(n, sideData, kernFilter, hideGrouped),
     )
-  }, [font, sortMode, searchMode, searchText, sideData, kernFilter, hideGrouped])
+  }, [font, sortMode, searchMode, searchText, sideData, kernFilter, hideGrouped, scriptFilter])
 
   // Hidden glyphs, deleted groups and departed members leave the selection.
   useEffect(() => {
@@ -389,6 +395,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
   // -- import / export (Font-Rover import_export.py) -----------------------------------
 
   const [tools, setTools] = useState<ToolSpec[]>([])
+  const [diffOpen, setDiffOpen] = useState(false)
   const [tool, setTool] = useState<ToolSpec | null>(null)
   useEffect(() => {
     void python.call('toolList', []).then(setTools)
@@ -664,14 +671,38 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
           }}
         />
         <Menu label="Tools" width="w-72">
-          {(close) =>
-            [...tools].sort((a, b) => a.name.localeCompare(b.name)).map((t) => (
+          {(close) => {
+            const item = (t: ToolSpec) => (
               <MenuItem key={t.id} title={t.description} onClick={() => { close(); setTool(t) }}>
                 {t.name}…
               </MenuItem>
-            ))
-          }
+            )
+            const byName = (a: ToolSpec, b: ToolSpec) => a.name.localeCompare(b.name)
+            const masterTools = designspace ? tools.filter((t) => t.needsDesignspace).sort(byName) : []
+            return (
+              <>
+                {tools.filter((t) => !t.needsDesignspace).sort(byName).map(item)}
+                {designspace && (
+                  <>
+                    <MenuSeparator />
+                    <div className="px-2.5 pb-0.5 pt-1 text-xs font-medium text-muted">Between masters</div>
+                    {masterTools.map(item)}
+                    <MenuItem
+                      title="Show the kerning groups that are not the same in every master, as glyph cells."
+                      onClick={() => {
+                        close()
+                        setDiffOpen(true)
+                      }}
+                    >
+                      Diff Groups…
+                    </MenuItem>
+                  </>
+                )}
+              </>
+            )
+          }}
         </Menu>
+        <span className="ml-auto whitespace-nowrap text-xs text-muted">{stats}</span>
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
@@ -697,6 +728,7 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
                 <option value="order">Glyph order</option>
                 <option value="unicode">Unicode order</option>
               </Select>
+              <ScriptFilter font={font} value={scriptFilter} onChange={setScriptFilter} />
               <Select value={kernFilter} onChange={(e) => setKernFilter(e.target.value as KernFilter)} aria-label="Kerning filter">
                 <option value="all">All glyphs</option>
                 <option value="kerned">Kerned</option>
@@ -846,13 +878,35 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
       </div>
       </div>
 
+      {diffOpen && designspace && (
+        <DiffGroupsDialog
+          font={font}
+          info={designspace}
+          readOnly={readOnly}
+          keepKerning={keepKerning}
+          run={run}
+          onClose={() => setDiffOpen(false)}
+        />
+      )}
+
       {tool && (
         <ToolDialog
           tool={tool}
           readOnly={readOnly}
           hasSelectedGroup={!!group}
+          designspace={designspace}
           onPlan={(options) =>
-            python.call('toolPlan', [tool.id, { ...options, _selectedGroups: group ? [group] : [], _side: side }])
+            python.call('toolPlan', [
+              tool.id,
+              {
+                ...options,
+                _selectedGroups: group ? [group] : [],
+                _side: side,
+                _keepKerning: keepKerning,
+                // Font grid selection, then selected members of the open group.
+                _selectedGlyphs: [...sel.font, ...sel.content],
+              },
+            ])
           }
           onApply={async () => {
             const res = await run(() => python.call('toolApply', []))
@@ -874,5 +928,41 @@ export function GroupsControl({ font, fontName, readOnly, run, ask, onStats }: P
         </div>
       )}
     </div>
+  )
+}
+
+/** Font grid: show only glyphs of the chosen scripts (none chosen = all). */
+function ScriptFilter({ font, value, onChange }: { font: FontModel; value: string[]; onChange: (v: string[]) => void }) {
+  const counts = font.scriptCounts()
+  const chosen = new Set(value)
+  const label =
+    value.length === 0
+      ? 'All scripts'
+      : value.length <= 2
+        ? value.map((c) => font.scriptLabel(c)).join(', ')
+        : `${value.length} scripts`
+  return (
+    <Menu label={<span className={value.length ? 'text-accent' : ''}>{label}</span>} width="w-56">
+      {() => (
+        <>
+          <MenuItem onClick={() => onChange([])} disabled={!value.length}>
+            Show all scripts
+          </MenuItem>
+          <MenuSeparator />
+          {counts.map(([code, n]) => (
+            <label key={code} className="flex items-center gap-2 rounded-lg px-2.5 py-1 text-[13px] hover:bg-raised">
+              <input
+                type="checkbox"
+                className="size-3.5 accent-[var(--c-accent)]"
+                checked={chosen.has(code)}
+                onChange={(e) => onChange(e.target.checked ? [...value, code] : value.filter((c) => c !== code))}
+              />
+              <span className="flex-1">{font.scriptLabel(code)}</span>
+              <span className="tabular-nums text-xs text-muted">{n}</span>
+            </label>
+          ))}
+        </>
+      )}
+    </Menu>
   )
 }

@@ -20,6 +20,10 @@ from gcweb.document import UfoDocument
 from gcweb.document import delta as delta_of
 from gcweb.export import font_payload, glyph_record
 from gcweb.lang import LangChecker
+from gcweb.master_tools import MASTER_TOOLS, MasterContext, MasterPlan, plan_master_tool
+from gcweb.master_tools import groups_diff as groups_diff_of
+from gcweb.master_tools import plan_match_group
+from gcweb.master_tools import tool_choices as tool_choices_of
 from gcweb.preview import KernEdit, dependency_line, pair_rows
 from gcweb.tools import TOOLS, WorkFont, plan_tool
 from gcweb.fr_font import FRFont
@@ -549,14 +553,71 @@ def import_apply() -> str:
 
 
 def tool_list() -> str:
-    return json.dumps([t.spec() for t in TOOLS.values()])
+    """Single-font tools, then the tools between designspace masters (needsDesignspace)."""
+    return json.dumps([t.spec() for t in TOOLS.values()] + [t.spec() for t in MASTER_TOOLS.values()])
+
+
+def _master_context() -> MasterContext:
+    if _designspace is None:
+        raise RuntimeError("this tool works between the masters of a designspace")
+    return MasterContext(
+        [m.doc for m in _masters],
+        [m["name"] for m in _designspace.masters],
+        _current,
+        [m["location"] for m in _designspace.masters],
+    )
+
+
+def tool_choices(tool_id: str, option_id: str) -> str:
+    """Choices of a tool's "checklist" option (e.g. the scripts of this master's kerning)."""
+    return json.dumps(tool_choices_of(_master_context(), tool_id, option_id))
+
+
+def groups_diff(masters_json: str) -> str:
+    """Kern groups that differ between the current master and the given ones (Diff Groups)."""
+    return json.dumps(groups_diff_of(_master_context(), json.loads(masters_json)))
+
+
+def match_group(group: str, masters_json: str, keep_kerning: bool) -> str:
+    """Diff Groups action: make `group` in the given masters the same as in the current one."""
+    plan = plan_match_group(_master_context(), group, json.loads(masters_json), keep_kerning)
+    out = json.loads(_apply_master_plan(plan))
+    out["result"] = {"masters": len(plan.results), "lines": plan.lines}
+    return json.dumps(out)
 
 
 def tool_plan(tool_id: str, options_json: str) -> str:
     """Dry run: report lines; nothing changes until tool_apply()."""
     global _pending_tool
-    _pending_tool = plan_tool(_require(), tool_id, json.loads(options_json))
+    options = json.loads(options_json)
+    if tool_id in MASTER_TOOLS:
+        _pending_tool = plan_master_tool(_master_context(), tool_id, options)
+    else:
+        _pending_tool = plan_tool(_require(), tool_id, options)
     return json.dumps({"lines": _pending_tool.lines, "changes": _pending_tool.changes})
+
+
+def _apply_master_plan(plan: MasterPlan) -> str:
+    """Put a master tool's results in place, every master in one step."""
+    for i in plan.results:
+        if _masters[i].doc.read_only_reason:
+            raise RuntimeError(f"{_designspace.masters[i]['name']}: {_masters[i].doc.read_only_reason}")
+    origin = _current
+    current_diffs = (({}, []), ({}, []))
+    others = []
+    for i, (groups, kerning) in plan.results.items():
+        _point(i)
+        view = _doc.master
+        diffs = (view.groups.reset_to(groups), view.kerning.reset_to(kerning))
+        _manager.makeReverseGroupsMapping()
+        if i == origin:
+            current_diffs = diffs
+        else:
+            others.append(i)
+    _point(origin)
+    delta = delta_of(origin, *current_diffs)
+    delta["lang"] = _lang_update(delta)
+    return json.dumps({"result": None, "delta": delta, "dirty": _dirty(), **_ds_extra(others)})
 
 
 def tool_apply() -> str:
@@ -565,6 +626,8 @@ def tool_apply() -> str:
     plan, _pending_tool = _pending_tool, None
     if plan is None:
         raise RuntimeError("nothing planned")
+    if isinstance(plan, MasterPlan):
+        return _apply_master_plan(plan)
     doc = _require()
     if doc.read_only_reason:
         raise RuntimeError(doc.read_only_reason)

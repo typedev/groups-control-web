@@ -361,3 +361,148 @@ def test_session_state_restores_every_changed_master(project):
     assert K2A in res["delta"]["groups"]["removed"]
     assert K2A not in _groups(1) and K2A in _groups(2)
     assert res["designspace"]["scope"] == "master"
+
+
+# -- tools between masters ----------------------------------------------------------
+
+
+def _plan(tool, **options):
+    return json.loads(api.tool_plan(tool, json.dumps(options)))
+
+
+def test_master_tools_are_listed_and_need_a_designspace(project):
+    tools = {t["id"]: t for t in json.loads(api.tool_list())}
+    assert tools["copyGroups"]["needsDesignspace"] is True
+    api.open_font(str(project.parent / "masters" / "Light.ufo"))
+    with pytest.raises(RuntimeError, match="designspace"):
+        _plan("copyGroups", targets=[1])
+
+
+def test_copy_groups_follows_membership_in_each_master(project):
+    api.open_designspace(str(project))
+    api.set_edit_scope("master")
+    api.delete_group(K2A, True)  # Light only: its group pairs become exceptions
+    plan = _plan("copyGroups", targets=[1, 2], what="kern", _keepKerning=True)
+    assert plan["changes"]
+    assert any(line.startswith("Bold:") for line in plan["lines"])
+    res = json.loads(api.tool_apply())
+    assert sorted(res["others"]) == [1, 2]
+    # Bold lost the group the same way Light did: same exceptions.
+    assert K2A not in _groups(1) and _kerning(1) == _kerning(0)
+    # The italic's extra group is gone too; all three now agree.
+    assert res["designspace"]["sets"] == 1
+    assert _plan("copyGroups", targets=[1, 2], what="kern")["changes"] is False
+
+
+def test_copy_groups_leaves_equal_masters_and_other_groups_alone(project):
+    api.open_designspace(str(project))
+    plan = _plan("copyGroups", targets=[1], what="all")
+    assert plan["changes"] is False and plan["lines"][-1] == "Bold: already the same"
+    api.switch_master(2)  # the italic: extra kern group, same other groups
+    assert _plan("copyGroups", targets=[0, 1], what="other")["changes"] is False
+
+
+def test_groups_diff_lists_variants_with_their_masters(project):
+    root = project.parent / "masters"
+    _edit_groups(root / "Bold.ufo", lambda g: g.__setitem__("testGroup", ["H", "F", "E"]))  # not a kern group
+    api.open_designspace(str(project))
+    diff = json.loads(api.groups_diff(json.dumps([1, 2])))
+    assert [d["group"] for d in diff] == ["public.kern1.@MMK_L_E"]
+    entry = diff[0]
+    assert entry["level"] == "different"
+    assert entry["variants"] == [{"members": None, "masters": [0, 1]}, {"members": ["E", "F"], "masters": [2]}]
+    api.set_edit_scope("master")
+    api.move_in_group("public.kern1.@MMK_L_A", '["A"]', 1)  # one member: order cannot change
+    assert json.loads(api.groups_diff(json.dumps([1]))) == []
+
+
+def test_match_group_fixes_one_group_and_moves_glyphs(project):
+    root = project.parent / "masters"
+    # Light: E F in their own group; Bold: E in @MMK_L_A, F free; Italic: same as Light plus nothing else.
+    _edit_groups(root / "Light.ufo", lambda g: g.__setitem__("public.kern1.@MMK_L_E", ["E", "F"]))
+    _edit_groups(root / "Bold.ufo", lambda g: g.__setitem__("public.kern1.@MMK_L_A", ["A", "E"]))
+    api.open_designspace(str(project))
+    res = json.loads(api.match_group("public.kern1.@MMK_L_E", json.dumps([1, 2]), True))
+    assert res["result"]["masters"] == 1 and res["others"] == [1]
+    assert "taken from public.kern1.@MMK_L_A (E)" in res["result"]["lines"][0]
+    assert list(_groups(1)["public.kern1.@MMK_L_E"]) == ["E", "F"]
+    assert list(_groups(1)["public.kern1.@MMK_L_A"]) == ["A"]
+    # Bold still differs elsewhere? No: its @MMK_L_A now matches Light's too.
+    assert json.loads(api.groups_diff(json.dumps([1, 2]))) == []
+
+
+def test_match_group_removes_a_group_this_master_lacks(project):
+    api.open_designspace(str(project))
+    res = json.loads(api.match_group("public.kern1.@MMK_L_E", json.dumps([1, 2]), True))
+    assert res["others"] == [2] and "public.kern1.@MMK_L_E" not in _groups(2)
+
+
+def test_copy_kerning_of_glyphs_adds_only_missing_pairs(project):
+    root = project.parent / "masters"
+    import plistlib
+
+    def kern(ufo, fn):
+        path = root / ufo / "kerning.plist"
+        data = plistlib.loads(path.read_bytes())
+        fn(data)
+        path.write_bytes(plistlib.dumps(data))
+
+    kern("Light.ufo", lambda k: k.setdefault("T", {}).update({"O": -30}))
+    kern("Bold.ufo", lambda k: k.setdefault("T", {}).update({"O": -50}))  # has it: kept
+    api.open_designspace(str(project))
+    assert not _plan("copyKerning", targets=[1, 2], glyphs="selected", _selectedGlyphs=[])["changes"]
+    plan = _plan("copyKerning", targets=[1, 2], glyphs="typed", typed="T, Nope", withGroups=False)
+    assert plan["lines"][0].startswith("2 pair(s) of 1 glyph(s)")
+    assert "Not in Light: Nope" in plan["lines"]
+    res = json.loads(api.tool_apply())
+    assert res["others"] == [2]
+    assert _kerning(1)[("T", "O")] == -50 and _kerning(2)[("T", "O")] == -30
+
+
+def _kern(project, ufo, fn):
+    import plistlib
+
+    path = project.parent / "masters" / ufo / "kerning.plist"
+    data = plistlib.loads(path.read_bytes())
+    fn(data)
+    path.write_bytes(plistlib.dumps(data))
+
+
+def test_factor_from_locations():
+    from gcweb.master_tools import factor_from_locations
+
+    f, how = factor_from_locations({"wght": 300, "ital": 0}, {"wght": 700, "ital": 0}, {"wght": 400, "ital": 0})
+    assert f == 0.25 and "wght 400 between 300 and 700" in how
+    with pytest.raises(ValueError, match="not between"):
+        factor_from_locations({"wght": 300, "ital": 0}, {"wght": 700, "ital": 0}, {"wght": 400, "ital": 1})
+    with pytest.raises(ValueError, match="not on the line"):
+        factor_from_locations({"a": 0, "b": 0}, {"a": 10, "b": 10}, {"a": 5, "b": 2})
+
+
+def test_interpolate_kerning_into_this_master(project):
+    _kern(project, "Bold.ufo", lambda k: k["T"].update({"public.kern2.@MMK_R_A": -125}))
+    api.open_designspace(str(project))
+    api.switch_master(2)  # the italic is not between Light and Bold in the designspace…
+    with pytest.raises(ValueError, match="not between"):
+        _plan("interpolateKerning", a=0, b=1, position="")
+    plan = _plan("interpolateKerning", a=0, b=1, position="0.5")  # …so the position is typed
+    assert plan["changes"] and "position 0.5 (typed)" in plan["lines"][0]
+    res = json.loads(api.tool_apply())
+    assert res["others"] == [] and res["dirty"]
+    assert _kerning(2)[("T", K2A)] == -100
+    assert _kerning(0)[("T", K2A)] == -75  # A and B are not touched
+
+
+def test_transfer_kerning_by_script(project):
+    _kern(project, "Light.ufo", lambda k: k["T"].update({"O": -30}))
+    _kern(project, "Bold.ufo", lambda k: k["T"].update({"O": -50}))
+    api.open_designspace(str(project))
+    choices = json.loads(api.tool_choices("transferKerning", "scripts"))
+    assert choices[0][0] == "Latn" and "4 pairs" in choices[0][1]
+    assert not _plan("transferKerning", targets=[1, 2], scripts=[])["changes"]
+    plan = _plan("transferKerning", targets=[1, 2], scripts=["Latn"])
+    assert plan["changes"]
+    res = json.loads(api.tool_apply())
+    assert res["others"] == [2]
+    assert _kerning(1)[("T", "O")] == -50  # kept: no overwrite
+    assert _kerning(2)[("T", "O")] == -30

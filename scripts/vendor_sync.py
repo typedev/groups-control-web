@@ -56,6 +56,8 @@ for _engine in (
     "clean_kerning", "key_glyphs", "flatten_kerning", "merge_script_groups",
     "place_composites", "place_ligatures", "cross_pairs", "rename_groups",
     "round_kerning", "split_groups",
+    # Tools between designspace masters (stage 4).
+    "copy_kerning", "transfer_kerning", "interpolate_kerning",
 ):
     FILES.append((f"font_rover/groups_control/{_engine}.py", f"{_engine}.py", []))
 

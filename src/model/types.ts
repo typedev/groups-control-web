@@ -42,6 +42,10 @@ export type FontData = {
   kerning: KerningEntry[]
   /** Kerning keys with a script/language problem; all others are fine. */
   lang: LangEntry[]
+  /** Glyph → ISO 15924 script (Unicode Script property); absent = Common (py/gcweb/scripts.py). */
+  scripts?: Record<string, string>
+  /** Script code → name, Common ("Zyyy") included. */
+  scriptLabels?: Record<string, string>
 }
 
 /** What one worker operation changed (py/gcweb/api.py _finish). */

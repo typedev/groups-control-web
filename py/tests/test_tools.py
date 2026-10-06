@@ -42,8 +42,8 @@ def state():
     return dict(view.groups), dict(view.kerning)
 
 
-def test_list_has_ten_tools(ufo):
-    tools = json.loads(api.tool_list())
+def test_list_has_ten_single_font_tools(ufo):
+    tools = [t for t in json.loads(api.tool_list()) if not t.get("needsDesignspace")]
     assert len(tools) == 10
     assert {t["id"] for t in tools} >= {"clean", "split", "round"}
 

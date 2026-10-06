@@ -92,8 +92,29 @@ export type ToolOption =
   | { id: string; type: 'radio'; label: string; default: string; choices: [string, string][] }
   | { id: string; type: 'checkbox'; label: string; default: boolean }
   | { id: string; type: 'entry'; label: string; default: string; placeholder?: string }
-export type ToolSpec = { id: string; name: string; description: string; options: ToolOption[] }
+  /** Master indices of the open designspace (every master but the current one is offered). */
+  | { id: string; type: 'masters'; label: string }
+  /** One master index of the open designspace, not the current one. */
+  | { id: string; type: 'master'; label: string }
+  /** Values chosen among choices the worker computes (toolChoices). */
+  | { id: string; type: 'checklist'; label: string }
+export type ToolSpec = {
+  id: string
+  name: string
+  description: string
+  options: ToolOption[]
+  /** Works between the masters of a designspace (py/gcweb/master_tools.py). */
+  needsDesignspace?: boolean
+}
 export type ToolPlan = { lines: string[]; changes: boolean }
+
+/** Diff Groups: a kern group whose membership is not the same in every compared master. */
+export type GroupsDiffEntry = {
+  group: string
+  level: 'order' | 'different'
+  /** Distinct memberships, the current master's first; members null = no such group there. */
+  variants: { members: string[] | null; masters: number[] }[]
+}
 
 export type GroupScope = 'kern' | 'other' | 'all'
 export type ImportPreview = { lines: string[]; ok: boolean; changes: boolean; imported: number }
@@ -131,6 +152,10 @@ export type Api = {
   restoreState: (state: string) => OpResult<null>
   loadHistory: (text: string) => HistoryState & { notes: string[] }
   toolList: () => ToolSpec[]
+  groupsDiff: (masters: number[]) => GroupsDiffEntry[]
+  toolChoices: (toolId: string, optionId: string) => [string, string][]
+  /** Diff Groups action: the group in these masters made the same as in the current one. */
+  matchGroup: (group: string, masters: number[], keepKerning: boolean) => OpResult<{ masters: number; lines: string[] }>
   toolPlan: (id: string, options: Record<string, unknown>) => ToolPlan
   toolApply: () => OpResult<null>
   history: () => HistoryState

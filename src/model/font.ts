@@ -93,6 +93,25 @@ export class FontModel {
     return this.data.glyphs[name]
   }
 
+  /** The glyph's script code; COMMON for figures, punctuation, marks, unknown. */
+  scriptOf(name: string): string {
+    return this.data.scripts?.[name] ?? COMMON
+  }
+
+  scriptLabel(code: string): string {
+    return this.data.scriptLabels?.[code] ?? (code === COMMON ? 'Common' : code)
+  }
+
+  /** Scripts of the font with their glyph counts: most glyphs first, Common last. */
+  scriptCounts(): [code: string, count: number][] {
+    const counts = new Map<string, number>()
+    for (const name of this.data.order) {
+      const code = this.scriptOf(name)
+      counts.set(code, (counts.get(code) ?? 0) + 1)
+    }
+    return [...counts].sort((a, b) => Number(a[0] === COMMON) - Number(b[0] === COMMON) || b[1] - a[1] || a[0].localeCompare(b[0]))
+  }
+
   /** Crossings of the glyph's outline with the beam at height y. */
   beamCrossings(name: string, y: number): number[] {
     let segs = this.segments.get(name)
@@ -235,6 +254,9 @@ function push(map: Map<string, number[]>, key: string, value: number) {
 export type KernFilter = 'all' | 'kerned' | 'not_kerned'
 export type SearchMode = 'name' | 'unicode'
 export type SortMode = 'order' | 'unicode'
+
+/** ISO 15924 "Common": glyphs of no script. */
+export const COMMON = 'Zyyy'
 
 function wildcard(pattern: string): RegExp {
   const body = pattern.replace(/[.+?^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*')

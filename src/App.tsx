@@ -29,7 +29,6 @@ export function App() {
   const [font, setFont] = useState<OpenFont | null>(null)
   const [opening, setOpening] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [stats, setStats] = useState('')
   const [status, setStatus] = useState<string | null>(null)
   const [stored, setStored] = useState<StoredSession | null>(null)
   const { ask, element: dialog } = useDialogs()
@@ -293,7 +292,6 @@ export function App() {
     await python.call('close', [])
     await forgetSession()
     setFont(null)
-    setStats('')
     setStatus(null)
   }, [ask])
 
@@ -434,8 +432,7 @@ export function App() {
               <MasterPicker info={font.summary.designspace} onSwitch={switchMaster} onScope={setEditScope} onMatchOrder={matchOrder} />
             )}
             {status && <span className="truncate text-xs text-muted">{status}</span>}
-            <span className="ml-auto whitespace-nowrap text-xs text-muted">{stats}</span>
-            <Button disabled={readOnly || !font.dirty} onClick={revert}>
+            <Button className="ml-auto" disabled={readOnly || !font.dirty} onClick={revert}>
               Revert
             </Button>
             <Button
@@ -479,7 +476,14 @@ export function App() {
       <div className="flex min-h-0 flex-1">
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         {font ? (
-          <GroupsControl font={font.model} fontName={font.name} readOnly={readOnly} run={run} ask={ask} onStats={setStats} />
+          <GroupsControl
+            font={font.model}
+            fontName={font.name}
+            readOnly={readOnly}
+            run={run}
+            ask={ask}
+            designspace={font.summary.designspace}
+          />
         ) : (
           <StartScreen
             runtime={runtime}
