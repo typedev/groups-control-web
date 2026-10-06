@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-10-06
+
 ### Added
 - Tools → **Between masters** (designspace only):
   - **Copy Groups to Masters**: make the chosen masters' groups the same as
