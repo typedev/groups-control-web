@@ -1,4 +1,4 @@
-# Vendored from Font-Rover font_rover/groups_control/split_groups.py @ a052428 (Apache-2.0).
+# Vendored from Font-Rover font_rover/groups_control/split_groups.py @ 517caca (Apache-2.0).
 # Do not edit here: fix upstream, then run scripts/vendor_sync.py.
 # Copyright 2026 Alexander Lubovenko
 # Licensed under the Apache License, Version 2.0
@@ -88,7 +88,7 @@ def plan_split(font: Any, prefixes: Iterable[str] = SIDE_PREFIXES) -> list[Split
 def _key_script_is(compat: Any, members: Iterable[str], script: str) -> bool:
     """True if a group's key glyph is of ``script`` (it can take the glyphs)."""
     members = list(members)
-    return bool(members) and script in compat.glyph_scripts(members[0])
+    return bool(members) and compat.glyph_script(members[0]) == script
 
 
 def apply_split(manager: Any, moves: Iterable[SplitMove]) -> None:

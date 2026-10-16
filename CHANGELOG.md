@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+- Re-vendored Font-Rover 517caca (fixes reported from this port,
+  docs/upstream/font-rover-groups-control.md): Rename Groups and Replay
+  History always carry kerning with a rename; a glyph's script is its
+  character's primary Unicode Script (Split Groups, Lang); Copy Groups'
+  engine matches incrementally.
+- Transfer Kerning by Script takes its list of scripts from Font-Rover,
+  which now leaves out the scripts no glyph is written in (our own filter
+  is gone).
+
 ## [0.3.2] — 2026-10-06
 
 ### Fixed

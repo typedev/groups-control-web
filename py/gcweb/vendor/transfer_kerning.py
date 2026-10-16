@@ -1,4 +1,4 @@
-# Vendored from Font-Rover font_rover/groups_control/transfer_kerning.py @ a052428 (Apache-2.0).
+# Vendored from Font-Rover font_rover/groups_control/transfer_kerning.py @ 517caca (Apache-2.0).
 # Do not edit here: fix upstream, then run scripts/vendor_sync.py.
 # Copyright 2026 Alexander Lubovenko
 # Licensed under the Apache License, Version 2.0
@@ -60,12 +60,24 @@ def pair_scripts(font: Any, pairs: Iterable[tuple[str, str]]) -> dict[tuple[str,
     return result
 
 
-def script_counts(font: Any) -> Counter:
-    """How many pairs of ``font`` touch each script."""
+def script_choices(font: Any, mapping: dict[tuple[str, str], set[str]]) -> Counter:
+    """How many pairs touch each script worth offering: ``{code: count}``.
+
+    ``mapping`` comes from :func:`pair_scripts`, whose Script_Extensions put
+    a pair with an Arabic comma under Syriac, Thaana, Nko… as well. Only the
+    scripts some glyph of the font is written in are offered (plus
+    :data:`COMMON`); choosing one still takes every pair that touches it.
+    """
+    present = script_compat_for(font).font_scripts() | {COMMON}
     counts: Counter = Counter()
-    for scripts in pair_scripts(font, list(raw_kerning(font).keys())).values():
-        counts.update(scripts)
+    for scripts in mapping.values():
+        counts.update(scripts & present)
     return counts
+
+
+def script_counts(font: Any) -> Counter:
+    """How many pairs of ``font`` touch each script the font is written in."""
+    return script_choices(font, pair_scripts(font, list(raw_kerning(font).keys())))
 
 
 @dataclass

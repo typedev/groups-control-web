@@ -1,4 +1,4 @@
-# Vendored from Font-Rover font_rover/groups_control/groups_history.py @ a052428 (Apache-2.0).
+# Vendored from Font-Rover font_rover/groups_control/groups_history.py @ 517caca (Apache-2.0).
 # Do not edit here: fix upstream, then run scripts/vendor_sync.py.
 # Copyright 2024 Alexander Lubovenko
 # Licensed under the Apache License, Version 2.0
@@ -156,7 +156,9 @@ def replay(entries, name, groups, kerning, glyph_names) -> ReplayResult:
         elif op == OP_DELETE:
             manager.delete_group(group, check_kerning=check_kerning)
         elif op == OP_RENAME:
-            manager.rename_group(group, arg, check_kerning=check_kerning)
+            # Kerning always follows a rename; a K- rename (recorded before
+            # that rule) would leave the pairs on a group that is gone
+            manager.rename_group(group, arg, check_kerning=True)
 
     new_groups, new_kerning = dict(proxy.groups), dict(proxy.kerning)
     group_lines, kerning_lines, summary = describe_changes(

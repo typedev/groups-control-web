@@ -1,4 +1,4 @@
-# Vendored from Font-Rover font_rover/groups_control/rename_groups.py @ a052428 (Apache-2.0).
+# Vendored from Font-Rover font_rover/groups_control/rename_groups.py @ 517caca (Apache-2.0).
 # Do not edit here: fix upstream, then run scripts/vendor_sync.py.
 # Copyright 2026 Alexander Lubovenko
 # Licensed under the Apache License, Version 2.0
@@ -161,20 +161,19 @@ def apply_renames(font: Any, manager: Any, renames: list[tuple[str, str]]) -> in
     return renamed
 
 
-def rename_in_font(
-    font: Any, manager: Any, old: str, new: str, check_kerning: bool = True
-) -> str | None:
+def rename_in_font(font: Any, manager: Any, old: str, new: str) -> str | None:
     """Rename one group in one font; None when done, else why it was not.
 
     For Groups Control's Rename Group across the UFOs of a designspace: a UFO
     that lacks the group, or already uses the new name, is left as it is.
-    Main thread only when the font is on screen.
+    The group's kerning always moves to the new name. Main thread only when
+    the font is on screen.
     """
     if old not in font.groups:
         return "no group %s" % old
     if new in font.groups:
         return "%s exists already" % new
-    manager.rename_group(old, new, check_kerning=check_kerning)
+    manager.rename_group(old, new, check_kerning=True)
     return None
 
 

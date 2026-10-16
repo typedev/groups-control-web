@@ -1,4 +1,4 @@
-# Vendored from Font-Rover font_rover/groups_control/naming.py @ a052428 (Apache-2.0).
+# Vendored from Font-Rover font_rover/groups_control/naming.py @ 517caca (Apache-2.0).
 # Do not edit here: fix upstream, then run scripts/vendor_sync.py.
 # Copyright 2024 Alexander Lubovenko
 # Licensed under the Apache License, Version 2.0

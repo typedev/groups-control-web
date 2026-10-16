@@ -506,3 +506,17 @@ def test_transfer_kerning_by_script(project):
     assert res["others"] == [2]
     assert _kerning(1)[("T", "O")] == -50  # kept: no overwrite
     assert _kerning(2)[("T", "O")] == -30
+
+
+def test_transfer_lists_only_scripts_the_font_is_written_in(project):
+    import ufoLib2
+
+    path = project.parent / "masters" / "Light.ufo"
+    ufo = ufoLib2.Font.open(path)
+    ufo.newGlyph("commaarabic").unicodes = [0x060C]  # Script_Extensions: Arab Syrc Thaa Yezi …
+    ufo.kerning[("T", "commaarabic")] = -20
+    ufo.save(overwrite=True)
+    api.open_designspace(str(project))
+    codes = [c for c, _label in json.loads(api.tool_choices("transferKerning", "scripts"))]
+    assert "Latn" in codes
+    assert not {"Arab", "Syrc", "Thaa", "Yezi"} & set(codes)

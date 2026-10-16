@@ -1,4 +1,4 @@
-# Vendored from Font-Rover font_rover/languages/charsets.py @ a052428 (Apache-2.0).
+# Vendored from Font-Rover font_rover/languages/charsets.py @ 517caca (Apache-2.0).
 # Do not edit here: fix upstream, then run scripts/vendor_sync.py.
 """
 Language character sets — which codepoints an orthography needs.

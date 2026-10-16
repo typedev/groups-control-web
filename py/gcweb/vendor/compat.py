@@ -1,4 +1,4 @@
-# Vendored from Font-Rover font_rover/languages/compat.py @ a052428 (Apache-2.0).
+# Vendored from Font-Rover font_rover/languages/compat.py @ 517caca (Apache-2.0).
 # Do not edit here: fix upstream, then run scripts/vendor_sync.py.
 """
 Script and language compatibility of glyphs — which kerning pairs cross
@@ -6,8 +6,10 @@ writing systems.
 
 Two levels, as in KernTool4's TDLangSet, but with different sources:
 
-- **Level 1 — script.** The Unicode Script property of the glyph's character
-  (``fontTools.unicodedata.script_extension``), not a list of languages. With
+- **Level 1 — script.** The Unicode Script_Extensions of the glyph's
+  character (``fontTools.unicodedata.script_extension``), not a list of
+  languages: an Arabic comma is used by Syriac and Thaana text too, so a pair
+  with it is compatible with all three. With
   a thousand languages some letters legitimately belong to orthographies of
   two scripts (``A`` is in a Cyrillic orthography's auxiliary set), so "shares
   a language" is too weak a test for "same script". Common and Inherited
@@ -17,6 +19,12 @@ Two levels, as in KernTool4's TDLangSet, but with different sources:
   languages the font supports count (its ``base`` letters are all present),
   and only letters take part — some orthographies list ``'`` or ``-`` as
   letters, which would otherwise make every Cyrillic/hyphen pair "foreign".
+
+A glyph's *own* script — the one it is written in, for listing, splitting
+and naming — is the primary Script property instead (:meth:`ScriptCompat.
+glyph_script`). Read from Script_Extensions, combining marks, the middle dot
+and the apostrophe made about thirty scripts appear (Tifinagh, Cherokee…) in
+a font that has none of them.
 
 A kerning group stands for all its members: its masks are the union of the
 members' masks, so a pair is cross-language only if no member combination
@@ -117,6 +125,24 @@ def codepoint_script_mask(codepoint: int) -> int:
         if script not in _NEUTRAL_SCRIPTS:
             mask |= _script_bit(script)
     return mask
+
+
+@lru_cache(maxsize=None)
+def codepoint_script(codepoint: int) -> Optional[str]:
+    """The primary Unicode Script of a codepoint (aliased), None when neutral.
+
+    For "which script is this glyph written in"; pair compatibility uses the
+    extensions (:func:`codepoint_script_mask`).
+    """
+    if codepoint in _NEUTRAL_CODEPOINTS or is_private_use(codepoint):
+        return None
+    try:
+        script = ft_unicodedata.script(chr(codepoint))
+    except ValueError:
+        return None
+    if script in _NEUTRAL_SCRIPTS:
+        return None
+    return _SCRIPT_ALIASES.get(script, script)
 
 
 def script_codes(mask: int) -> tuple[str, ...]:
@@ -249,6 +275,7 @@ class ScriptCompat:
         self._dirty = True
         self._name_to_cps: dict[str, list[int]] = {}
         self._glyph_masks: dict[str, tuple[int, int]] = {}
+        self._font_scripts: Optional[frozenset[str]] = None
         self._scope = 0
         unicode_data = _unicode_data(naked)
         self._observes = unicode_data is not None
@@ -288,6 +315,7 @@ class ScriptCompat:
                 name_to_cps.setdefault(name, []).append(codepoint)
         self._name_to_cps = name_to_cps
         self._glyph_masks = {}
+        self._font_scripts = None
         self._scope = covered_languages_mask(cmap.keys())
         self._dirty = False
 
@@ -321,8 +349,30 @@ class ScriptCompat:
         return self._masks(name)[level - 1]
 
     def glyph_scripts(self, name: str) -> tuple[str, ...]:
-        """ISO 15924 script codes of a glyph, empty when it has none."""
+        """ISO 15924 codes of every script a glyph is used in (extensions)."""
         return script_codes(self.glyph_mask(name, LEVEL_SCRIPT))
+
+    def glyph_script(self, name: str) -> Optional[str]:
+        """The script a glyph is written in (primary Script), None if neutral."""
+        codepoint = self.codepoint(name)
+        return None if codepoint is None else codepoint_script(codepoint)
+
+    def font_scripts(self) -> frozenset[str]:
+        """The scripts at least one glyph of the font is written in.
+
+        Unencoded glyphs count through their names (``a.sc``,
+        ``uni0628.fina``). Rebuilt when the font's encoding changes; glyphs
+        added without a notification need :meth:`invalidate`.
+        """
+        self._refresh()
+        if self._font_scripts is None:
+            scripts = set()
+            for name in self._font.keys():
+                script = self.glyph_script(name)
+                if script is not None:
+                    scripts.add(script)
+            self._font_scripts = frozenset(scripts)
+        return self._font_scripts
 
     @property
     def languages(self) -> tuple[str, ...]:
@@ -459,9 +509,10 @@ class ScriptCompat:
         """Members of a group whose script the key glyph does not share.
 
         The key glyph is the first member. Returns ``{script code: [names]}``
-        in member order; a member of several scripts goes under the first
-        code, a member of no identifiable script is never foreign. A key glyph
-        without a script makes the group mixed-safe: nothing is foreign.
+        in member order; a member goes under the script it is written in (its
+        primary Script), a member of no identifiable script is never foreign.
+        A key glyph without a script makes the group mixed-safe: nothing is
+        foreign.
         """
         self._refresh()
         members = list(self._font.groups.get(group, ()))
@@ -474,7 +525,8 @@ class ScriptCompat:
         for name in members[1:]:
             mask = self._masks(name)[0]
             if mask and not mask & key_mask:
-                result.setdefault(script_codes(mask)[0], []).append(name)
+                script = self.glyph_script(name) or script_codes(mask)[0]
+                result.setdefault(script, []).append(name)
         return result
 
 

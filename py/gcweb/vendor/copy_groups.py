@@ -1,4 +1,4 @@
-# Vendored from Font-Rover font_rover/groups_control/copy_groups.py @ a052428 (Apache-2.0).
+# Vendored from Font-Rover font_rover/groups_control/copy_groups.py @ 517caca (Apache-2.0).
 # Do not edit here: fix upstream, then run scripts/vendor_sync.py.
 # Copyright 2024 Alexander Lubovenko
 # Licensed under the Apache License, Version 2.0
@@ -7,10 +7,11 @@
 Copy the groups of one designspace UFO into the others.
 
 The engine behind the Groups Control "Copy Groups" board script. Kerning
-groups go through FontGroupsManager, so a target's kerning survives the change
-of membership: every existing kern group is deleted first (its pairs flatten to
-glyph pairs), then the master's groups are added (glyph pairs fold back into
-group pairs). Other groups are replaced outright.
+groups go through FontGroupsManager, so a target's kerning follows the change
+of membership. Only what differs is touched (`_match_kern_groups`): a target
+whose kern groups already equal the master's is left exactly as it is, the
+others lose the groups and members the master does not have and gain the
+missing ones. Other groups are replaced outright.
 
 The unit is the UFO, not the master: groups and kerning belong to the UFO, and
 every layer master stored in it shares them.
@@ -155,9 +156,8 @@ def describe_changes(
 ) -> tuple[list[str], list[str], str]:
     """What the copy did to one target, group by group.
 
-    The step log only names the target's own kern groups (each is deleted
-    before the master's are added), so a group that is new to the target, or
-    one that disappeared from it, was never mentioned by name.
+    The step log only names the edits made, so a group whose members only
+    moved, or one that is new to the target, is named here.
 
     Returns:
         (group lines, kerning lines, one-line summary) — the group lines are
@@ -251,13 +251,17 @@ def process_font(
 
     manager = FontGroupsManager(proxy)
     skipped_by_group: dict[str, list[str]] = {}
-    if replace_kern:
-        _replace_kern_groups(manager, proxy, master_kern_groups, log, skipped_by_group)
+    kern_differs = replace_kern and _kern_part(old_groups) != _kern_part(master_kern_groups)
+    if replace_kern and not kern_differs:
+        log.append("  kern groups already the same: kern groups and kerning left as they are")
+    if kern_differs:
+        _match_kern_groups(manager, proxy, master_kern_groups, log, skipped_by_group)
     if replace_other:
         _replace_other_groups(manager, proxy, master_other_groups, log)
-    if replace_kern:
+    if kern_differs:
         # Only when the kern side was rewritten: otherwise the kerning the
-        # caller asked to leave alone is not ours to clean.
+        # caller asked to leave alone (or that is already right) is not ours
+        # to clean.
         log.extend(clean_kern_and_groups(proxy))
 
     kern_n, other_n = count_groups(proxy)
@@ -275,29 +279,63 @@ def process_font(
     return new_groups, new_kerning, log, report
 
 
-def _replace_kern_groups(manager, proxy, master_kern_groups, log, skipped_by_group) -> None:
-    """Delete the target's kern groups, then add the master's, kerning carried."""
-    # Delete the target's own (pairs flatten to glyph pairs) ...
-    for name in [g for g in proxy.groups.keys() if manager.is_kerning_group(g)]:
+def _kern_part(groups) -> dict:
+    return {name: tuple(members) for name, members in groups.items() if is_kern_group(name)}
+
+
+def _match_kern_groups(manager, proxy, master_kern_groups, log, skipped_by_group) -> None:
+    """Make the target's kern groups the master's with as few edits as possible.
+
+    Deleting every group and adding the master's back (flatten, then fold)
+    was slow and changed kerning even in groups that were already right.
+    Here: delete the groups the master lacks, take out members that belong
+    elsewhere, add the missing ones, then copy the member order (key glyphs).
+    Kerning follows through FontGroupsManager each step. Glyphs the target
+    does not have are left out; `clean_kern_and_groups` reports them.
+    """
+    groups = proxy.groups
+    wanted = {name: list(members) for name, members in master_kern_groups.items()}
+
+    gone = [name for name in groups.keys() if manager.is_kerning_group(name) and name not in wanted]
+    for name in gone:
         new_pairs, deleted_pairs = manager.delete_group(name)
         log.append(
             f"  delete_group({name}): new_pairs={len(new_pairs)}, deleted_pairs={len(deleted_pairs)}"
         )
-    log.append(f"  after group deletion: {len(proxy.kerning)} flat pairs")
 
-    # ... then add the master's (glyph pairs fold back into group pairs).
-    skipped_n = new_n = deleted_n = 0
-    for name, members in master_kern_groups.items():
-        skipped, new_pairs, deleted_pairs = manager.add_glyphs_to_group(name, list(members))
-        skipped_n += len(skipped)
-        new_n += len(new_pairs)
-        deleted_n += len(deleted_pairs)
+    for name in [g for g in groups.keys() if manager.is_kerning_group(g)]:
+        keep = set(wanted[name])
+        out = [glyph for glyph in groups[name] if glyph not in keep]
+        if out:
+            manager.remove_glyphs_from_group(name, out)
+            log.append(f"  remove_glyphs_from_group({name}): {out}")
+
+    skipped_n = added_n = 0
+    for name, members in wanted.items():
+        have = set(groups.get(name, ()))
+        add = [glyph for glyph in members if glyph not in have and glyph in proxy]
+        if not add:
+            continue
+        skipped, _new_pairs, _deleted_pairs = manager.add_glyphs_to_group(name, add)
+        added_n += len(add) - len(skipped)
         if skipped:
+            skipped_n += len(skipped)
             skipped_by_group[name] = list(skipped)
             log.append(f"  add_glyphs_to_group({name}): skipped={skipped}")
+
+    # The order sets the key glyph; it carries no kerning
+    reordered = 0
+    for name, members in wanted.items():
+        if name not in groups:
+            continue
+        current = list(groups[name])
+        order = [g for g in members if g in current] + [g for g in current if g not in members]
+        if order != current:
+            groups[name] = tuple(order)
+            reordered += 1
     log.append(
-        f"  kern groups applied: {len(master_kern_groups)} "
-        f"(skipped_glyphs={skipped_n}, new_pairs={new_n}, deleted_pairs={deleted_n})"
+        f"  kern groups matched: {len(gone)} deleted, {added_n} glyph(s) added, "
+        f"{skipped_n} skipped, {reordered} reordered"
     )
 
 
@@ -425,12 +463,24 @@ def compute(
     return [results[index] for index in range(len(data))]
 
 
-def apply_result(font, result: TargetResult) -> None:
-    """Write a computed result into a live font: one clear and one update each."""
-    font.groups.clear()
-    font.groups.update(result.groups)
-    font.kerning.clear()
-    font.kerning.update(result.kerning)
+def apply_result(font, result: TargetResult) -> bool:
+    """Write a computed result into a live font: one clear and one update each.
+
+    A dictionary that already holds the result is not written, so an
+    unchanged UFO is not marked modified. Returns True when anything was
+    written.
+    """
+    changed = False
+    groups = {name: tuple(members) for name, members in result.groups.items()}
+    if {name: tuple(members) for name, members in font.groups.items()} != groups:
+        font.groups.clear()
+        font.groups.update(result.groups)
+        changed = True
+    if dict(font.kerning.items()) != result.kerning:
+        font.kerning.clear()
+        font.kerning.update(result.kerning)
+        changed = True
+    return changed
 
 
 def write_logs(

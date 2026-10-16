@@ -24,7 +24,6 @@ from ufo_spacing_lib import FontGroupsManager
 import re
 
 from gcweb.fr_font import FRFont
-from gcweb.scripts import glyph_scripts
 from gcweb.vendor import copy_kerning, groups_history, interpolate_kerning, transfer_kerning
 from gcweb.vendor.copy_groups import FontProxy, describe_changes, is_kern_group
 
@@ -313,14 +312,9 @@ def _interpolate(ctx: MasterContext, o: dict) -> MasterPlan:
 
 def script_choices(ctx: MasterContext) -> list[list[str]]:
     """[[code, "Greek — 120 pairs"], …] for the scripts this master's kerning touches."""
-    doc = ctx.docs[ctx.current]
-    counts = transfer_kerning.script_counts(FRFont(doc))
-    # Only scripts some glyph of this master is written in, plus Common: pairs
-    # with marks or punctuation also count towards the scripts in those
-    # characters' Script_Extensions (Syriac for the Arabic comma, …).
-    layer = doc.ufo.layers.defaultLayer
-    own = set(glyph_scripts(doc.glyph_order(), lambda n: layer[n].unicodes if n in layer else None).values())
-    counts = {code: n for code, n in counts.items() if code in own or code == transfer_kerning.COMMON}
+    # Only scripts some glyph of this master is written in, plus Common
+    # (Font-Rover filters the Script_Extensions ghosts itself).
+    counts = transfer_kerning.script_counts(FRFont(ctx.docs[ctx.current]))
     return [
         [code, f"{transfer_kerning.script_label(code)} — {n} pairs"]
         for code, n in sorted(counts.items(), key=lambda kv: (kv[0] == transfer_kerning.COMMON, -kv[1]))
